@@ -97,9 +97,9 @@ check' (Id a b s) r@(C Refl) = do
   b' <- check s' b
   equate a' b'
   return $ r
-check' (B Pi sg tau) l@(Lam e) = do
+check' (B Pi sg tau) (Lam e) = do
   e' <- extendCtx "x" sg $ check (tau // V "x") (e // V "x")
-  return $ l
+  return $ Lam ("x" \\ e')
 check' ty t = do
   tty <- infer t
   equate ty tty
