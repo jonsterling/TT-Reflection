@@ -9,7 +9,7 @@ whnf (f :@ a) = case whnf f of
   Lam e -> whnf $ e // a
   f'    -> f' :@ a
 whnf d@(Split e p) = case whnf p of
-  Pair a b -> whnf $ instantiate2 (a,b) e
+  Pair a b -> whnf $ e /// (a,b)
   p' -> d
 whnf e = e
 

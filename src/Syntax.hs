@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveFoldable        #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE DeriveTraversable     #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveFoldable         #-}
+{-# LANGUAGE DeriveFunctor          #-}
+{-# LANGUAGE DeriveTraversable      #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
 
 module Syntax where
 
@@ -84,13 +85,9 @@ instantiate2 (a,b) =
       then a
       else b
 
-lam :: Eq a => a -> Tm a -> Tm a
-lam v b = Lam (v \\ b)
-
-split :: Eq a => Tm a -> (a, a, Tm a) -> Tm a -> Tm a
-split c (x,y,e) p = Split (abstract2 (x,y) e) p
-
 u // x = B.instantiate1 x u
 x \\ u = B.abstract1 x u
 
+u /// (x,y) = instantiate2 (x,y) u
+(x,y) \\\ u = abstract2 (x,y) u
 
