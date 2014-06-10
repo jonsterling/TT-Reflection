@@ -1,8 +1,8 @@
 module Compute where
 
-import Syntax
+import           Syntax
 
-import qualified Bound as B
+import qualified Bound  as B
 
 whnf :: Tm a -> Tm a
 whnf (Let (s, _) e) = whnf $ e // s

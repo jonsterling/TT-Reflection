@@ -1,22 +1,22 @@
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Syntax where
 
-import qualified Bound as B
-import qualified Bound.Var as B
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import Prelude.Extras
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Reader
-import Data.Foldable hiding (elem)
-import Data.Traversable
-import Data.Monoid
+import qualified Bound                as B
+import qualified Bound.Var            as B
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.Reader
+import           Data.Foldable        hiding (elem)
+import qualified Data.Map             as Map
+import           Data.Monoid
+import qualified Data.Set             as Set
+import           Data.Traversable
+import           Prelude.Extras
 
 data Binder
   = Pi

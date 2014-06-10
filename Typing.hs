@@ -1,24 +1,24 @@
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 
 module Typing ( infer
               , check
               , Checking(..)
               ) where
 
-import Syntax hiding (Tm)
-import Compute
-import qualified Syntax as Syn
-import qualified Context as Ctx
+import           Compute
+import qualified Context              as Ctx
+import           Syntax               hiding (Tm)
+import qualified Syntax               as Syn
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import qualified Data.Map             as Map
+import qualified Data.Set             as Set
 
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Reader
-import Data.Monoid
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.Reader
+import           Data.Monoid
 
 type Name = String
 type Tm = Syn.Tm Name
