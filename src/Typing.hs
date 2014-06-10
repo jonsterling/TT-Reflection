@@ -90,7 +90,7 @@ check' ty (V x) = do
 check' rho (Reflect p e) = do
   t <- infer p
   (a,b,s) <- ensureIdentity t
-  addEquation (a,b) $ check rho e
+  Reflect p <$> (addEquation (a,b) $ check rho e)
 check' (Id a b s) r@(C Refl) = do
   s' <- check (C U) s
   a' <- check s' a
