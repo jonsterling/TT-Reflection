@@ -73,10 +73,10 @@ infer' (V x) = lookupTy x
 infer' (Ann a s) = do
   s' :∈ _ <- check (C U) s
   a' :∈ _ <- check s' a
-  return $ s'
-infer' (C t) | elem t [U, Zero, One, Two] = return $ C U
+  return s'
+infer' (C t) | t  `elem` [U, Zero, One, Two] = return $ C U
 infer' (C Dot) = return $ C One
-infer' (C x) | elem x [Tt, Ff] = return $ C Two
+infer' (C x) | x `elem` [Tt, Ff] = return $ C Two
 infer' (B _ sg tau) = do
   _ <- check (C U) sg
   _ <- extendCtx "x" sg $ check (C U) (tau // V "x")
@@ -97,16 +97,16 @@ check' rho (Reflect p e) = do
   t <- infer p
   (a,b,s) <- ensureIdentity t
   e' :∈ _ <- addEquation (a,b) $ check rho e
-  return $ (Reflect p e') :∈  rho
+  return $ Reflect p e' :∈  rho
 check' (Id a b s) (C Refl) = do
   s' :∈ _ <- check (C U) s
   a' :∈ _ <- check s' a
   b' :∈ _ <- check s' b
   equate a' b'
-  return $ (C Refl) :∈ (Id a' b' s')
+  return $ C Refl :∈ Id a' b' s'
 check' (B Pi sg tau) (Lam e) = do
   e' :∈  _ <- extendCtx "x" sg $ check (tau // V "x") (e // V "x")
-  return $ (Lam ("x" \\ e')) :∈ (B Pi sg tau)
+  return $ Lam ("x" \\ e') :∈ B Pi sg tau
 check' ty t = do
   tty <- infer t
   equate ty tty
@@ -123,14 +123,14 @@ extractRealizer (u :∈ s) = extract u :||- s
     extract (Split e p) = Split (abstract2 ("x","y") (extract (instantiate2 (V "x", V "y") e))) (extract p)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
     extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
-    extract (f :@ a) = (extract f) :@ (extract a)
+    extract (f :@ a) = extract f :@ extract a
     extract e = e
 
 ensureIdentity :: Tm -> Checking (Tm, Tm, Tm)
-ensureIdentity ty = do
+ensureIdentity ty =
   case whnf ty of
     Id a b s -> return (a, b, s)
-    _ -> err $ "Expected identity type"
+    _ -> err "Expected identity type"
 
 equate :: Tm -> Tm -> Checking ()
 equate e1 e2 =
