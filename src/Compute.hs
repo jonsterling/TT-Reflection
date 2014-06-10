@@ -15,4 +15,3 @@ whnf d@(Split e p) = case whnf p of
   p' -> d
 whnf e = e
 
-

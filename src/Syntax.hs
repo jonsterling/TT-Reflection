@@ -77,6 +77,13 @@ abstract2 (x,y) =
       then Just False
     else Nothing
 
+instantiate2 :: Monad f => (f a, f a) -> B.Scope Bool f a -> f a
+instantiate2 (a,b) =
+  B.instantiate $ \z ->
+    if z
+      then a
+      else b
+
 lam :: Eq a => a -> Tm a -> Tm a
 lam v b = Lam (v \\ b)
 

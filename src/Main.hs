@@ -34,4 +34,4 @@ testReflection = check ty tm
 
 runClosed c = runReaderT (runChecking c) mempty
 
-
+realize c = extractRealizer <$> runClosed c
