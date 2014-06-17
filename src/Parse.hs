@@ -10,6 +10,7 @@ import Data.Monoid
 
 import Text.Trifecta
 import Text.Parser.Token.Highlight
+
 import qualified Bound as B
 
 import Syntax
@@ -41,8 +42,8 @@ parseConstant = Zero <$ (reserved "`0" <|> reserved "𝟘")
             <|> Refl <$ reserved "refl"
 
 parseBinder :: (Monad m, TokenParsing m) => m Binder
-parseBinder = Pi <$ (reserved "Pi" <|> reserved "Π")
-          <|> Sg <$ (reserved "Sg" <|> reserved "Σ")
+parseBinder = Pi <$ (reserved "pi" <|> reserved "Π")
+          <|> Sg <$ (reserved "sg" <|> reserved "Σ")
 
 optionalParens :: TokenParsing m => m a -> m a
 optionalParens p = try p <|> parens p
