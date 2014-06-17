@@ -18,8 +18,8 @@ import Syntax
 emptyOps :: (Monad m, TokenParsing m) => IdentifierStyle m
 emptyOps = IdentifierStyle
   { _styleName      = "operator"
-  , _styleStart     = alphaNum <|> oneOf "_-λ\\"
-  , _styleLetter    = alphaNum <|> oneOf "_-λ\\"
+  , _styleStart     = alphaNum <|> oneOf "_-"
+  , _styleLetter    = alphaNum <|> oneOf "_-"
   , _styleHighlight = Identifier
   , _styleReserved  = mempty
   , _styleReservedHighlight = ReservedIdentifier
@@ -81,6 +81,14 @@ parseReflection = Reflect
               <$> (reserved "reflect" *> parseTm)
               <*> (reserved "in" *> parseTm)
 
+parseIdentityType :: (Monad m, TokenParsing m) => m (Tm String)
+parseIdentityType = do
+  reserved "Id"
+  s <- parseTm
+  a <- parseTm
+  b <- parseTm
+  return $ Id a b s
+
 parseTm :: (Monad m, TokenParsing m) => m (Tm String)
 parseTm = optionalParens parseTm'
   where
@@ -88,5 +96,6 @@ parseTm = optionalParens parseTm'
            <|> (parseLambdaExpr <?> "lambda expr")
            <|> (parseBinderExpr <?> "binder expr")
            <|> (parseReflection <?> "reflection scope")
+           <|> (parseIdentityType <?> "identity type")
            <|> (parens $ Ann <$> (parseTm <* colon) <*> parseTm <?> "annotation")
            <|> (V <$> identifier <?> "variable")

@@ -37,8 +37,8 @@ main = runInputT defaultSettings loop
   where
     loop :: InputT IO ()
     loop = do
-      Just tmStr <- getInputLine "|- "
-      Just tyStr <- getInputLine ": "
+      Just tmStr <- getInputLine "⊢ "
+      Just tyStr <- getInputLine "∈ "
 
       let rtm = parseString parseTm mempty tmStr
       let rty = parseString parseTm mempty tyStr
