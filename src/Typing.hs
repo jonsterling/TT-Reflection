@@ -32,8 +32,13 @@ newtype Checking x =
   { runChecking :: ReaderT Context (Either String) x
   } deriving (Monad, Applicative, Functor, MonadReader Context)
 
-data Typing = Tm :∈ Tm deriving Show
-data Realization = Tm :||- Tm deriving Show
+data Typing = Tm :∈ Tm
+data Realization = Tm :||- Tm
+
+instance Show Typing where
+  show (tm :∈ ty) = show tm ++ " ∈ " ++ show ty
+instance Show Realization where
+  show (tm :||- ty) = show tm ++ " ╟ " ++ show ty
 
 err :: String -> Checking x
 err e = MkChecking $ ReaderT $ \_ -> Left e
