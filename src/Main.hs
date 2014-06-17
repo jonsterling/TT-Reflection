@@ -10,6 +10,7 @@ import           Compute
 import qualified Context              as Ctx
 import           Syntax
 import           Typing
+import           Parse
 
 import           Control.Applicative
 import           Control.Monad.Reader
