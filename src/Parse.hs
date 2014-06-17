@@ -35,7 +35,7 @@ parseConstant :: (Monad m, TokenParsing m) => m Constant
 parseConstant = Zero <$ (reserved "`0" <|> reserved "𝟘")
             <|> One  <$ (reserved "`1" <|> reserved "𝟙")
             <|> Two  <$ (reserved "`2" <|> reserved "𝟚")
-            <|> Dot  <$ (reserved "<>" <|> reserved "•")
+            <|> Dot  <$ (reserved "<>" <|> reserved "♦")
             <|> U    <$ (reserved "U"  <|> reserved "𝕌")
             <|> Tt   <$ reserved "tt"
             <|> Ff   <$ reserved "ff"
