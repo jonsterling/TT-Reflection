@@ -11,6 +11,7 @@ import qualified Context              as Ctx
 import           Syntax
 import           Typing
 import           Parse
+import           Pretty
 
 import           Control.Applicative
 import           Control.Monad.Reader
@@ -18,6 +19,7 @@ import           Data.Monoid
 
 import System.Console.Haskeline
 import Text.Trifecta
+import qualified Text.PrettyPrint as PP
 
 -- Examples
 --
@@ -50,8 +52,9 @@ main = runInputT defaultSettings loop
           let chk = check ty tm
           case runReaderT (runChecking chk) mempty of
             Right tder -> do
-              outputStrLn $ "Typing: " ++ show tder
-              outputStrLn $ "Realizer: " ++ show (extractRealizer tder)
+              let realizer = extractRealizer tder
+              outputStrLn $ "Typing: " ++ PP.renderStyle PP.style (prettyTyping tder)
+              outputStrLn $ "Realizer: " ++ PP.renderStyle PP.style (prettyRealizer realizer)
             Left err -> outputStrLn err
         _ -> outputStrLn "Parse error"
 

@@ -6,6 +6,8 @@
 module Typing ( infer
               , check
               , Checking(..)
+              , Typing(..)
+              , Realization(..)
               , extractRealizer
               ) where
 
