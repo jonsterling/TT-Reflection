@@ -1,0 +1,9 @@
+|- id in pi[x:`1] `1
+~> lam[x] x
+
+|- test in `1
+~> (id <>)
+
+|- reflection-example in pi[p: (Id U `0 `1)] `0
+~> lam[p] reflect p in <>
+
