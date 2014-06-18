@@ -3,7 +3,7 @@
 module Pretty where
 
 import Syntax
-import Typing
+import Typing hiding (Type)
 import Text.PrettyPrint
 import qualified Bound as B
 
@@ -40,14 +40,14 @@ instance (Show a, Pretty a) => Pretty (Tm a) where
   pretty i (f :@ a) = pretty i f <+> pretty i a
   pretty i e = error $ "Welp: " ++ show e
 
+instance (Show a, Pretty a) => Pretty (Type a) where
+  pretty i (Type e) = pretty i e
+
 instance Pretty String where
   pretty _ = text
 
-prettyTyping :: Typing -> Doc
-prettyTyping (tm :∈ ty) = pretty 0 tm <+> text "∈" <+> pretty 0 ty
-
-prettyNamedTyping :: (String, Typing) -> Doc
-prettyNamedTyping (n, t@(u :∈ s)) =
+prettyNamedTyping :: (String, Tm String, Type String) -> Doc
+prettyNamedTyping (n, u, s) =
   let Realizer r = extractRealizer u in
   text "⊢" <+> text n $$
     nest 2

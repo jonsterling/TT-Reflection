@@ -23,19 +23,6 @@ import System.Environment
 import Text.Trifecta
 import qualified Text.PrettyPrint as PP
 
--- Examples
---
-identityTyping = check identityTy identity
-  where
-    identity = Lam $ "s" \\ (Lam $ "x" \\ V "x")
-    identityTy = B Pi (C U) $ "s" \\ B Pi (V "s") ("x" \\ V "s")
-
-testReflection = check ty tm
-  where
-    idTy = Id (C Zero) (C One) (C U)
-    ty = B Pi idTy $ "p" \\ C Zero
-    tm = Lam $ "p" \\ Reflect (V "p") (C Dot)
-
 main :: IO ()
 main = do
   name:_ <- getArgs
@@ -55,7 +42,7 @@ repl = runInputT defaultSettings loop
       Just tyStr <- getInputLine "∈ "
 
       let rtm = parseString parseTm mempty tmStr
-      let rty = parseString parseTm mempty tyStr
+      let rty = parseString (Type <$> parseTm) mempty tyStr
 
       outputStrLn "--------------------------"
 
@@ -63,10 +50,9 @@ repl = runInputT defaultSettings loop
         (Success tm, Success ty) -> do
           let chk = check ty tm
           case runReaderT (runChecking chk) mempty of
-            Right tder@(u :∈ s) -> do
+            Right tder@(u, s) -> do
               let Realizer realizer = extractRealizer u
-              outputStrLn $ "Typing: " ++ PP.renderStyle PP.style (prettyTyping tder)
-              outputStrLn $ "Realizer: " ++ PP.renderStyle PP.style (pretty 0 realizer)
+              outputStrLn $ "Typing: " ++ PP.renderStyle PP.style (prettyNamedTyping ("_", u, s))
             Left err -> outputStrLn err
         _ -> outputStrLn "Parse error"
 

@@ -1,8 +1,10 @@
-{-# LANGUAGE DeriveFoldable         #-}
-{-# LANGUAGE DeriveFunctor          #-}
-{-# LANGUAGE DeriveTraversable      #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 module Syntax where
 
@@ -36,11 +38,11 @@ data Constant
 
 data Tm a
   = V a
-  | Ann (Tm a) (Tm a)
+  | Ann (Tm a) (Type a)
   | C Constant
   | Pair (Tm a) (Tm a)
-  | B Binder (Tm a) (B.Scope () Tm a)
-  | Id (Tm a) (Tm a) (Tm a)
+  | B Binder (Type a) (B.Scope () Type a)
+  | Id (Tm a) (Tm a) (Type a)
   | Reflect (Tm a) (Tm a)
   | Split (B.Scope Bool Tm a) (Tm a)
   | Lam (B.Scope () Tm a)
@@ -48,7 +50,10 @@ data Tm a
   | Tm a :@ Tm a
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
-data Decl a = Decl a (Tm a) (Tm a)
+newtype Type a = Type { untype :: Tm a }
+  deriving (Eq,Ord,Show,Read,Functor,Applicative,Foldable,Monad,Traversable,Read1,Show1,Eq1,Ord1)
+
+data Decl a = Decl a (Type a) (Tm a)
 
 instance Eq1 Tm
 instance Ord1 Tm
@@ -60,10 +65,10 @@ instance Monad Tm where
   return = V
   V a >>= f = f a
   C a >>= f = C a
-  Ann u t >>= f = Ann (u >>= f) (t >>= f)
+  Ann u t >>= f = Ann (u >>= f) (t >>= Type . f)
   Pair a b >>= f = Pair (a >>= f) (b >>= f)
-  B bnd s t >>= f = B bnd (s >>= f) (t B.>>>= f)
-  Id a b s >>= f = Id (a >>= f) (b >>= f) (s >>= f)
+  B bnd s t >>= f = B bnd (s >>= Type . f) (t B.>>>= Type . f)
+  Id a b s >>= f = Id (a >>= f) (b >>= f) (s >>= Type . f)
   Reflect p e >>= f = Reflect (p >>= f) (e >>= f)
   Let (s, sty) e >>= f = Let (s >>= f, sty >>= f) (e B.>>>= f)
   Lam e >>= f = Lam (e B.>>>= f)
