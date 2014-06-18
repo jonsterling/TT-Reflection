@@ -1,19 +1,18 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Parse where
 
-import Control.Arrow
-import Control.Monad
-import Control.Applicative
-import qualified Data.HashSet as HS
-import Data.Monoid
+import           Control.Applicative
+import           Control.Arrow
+import           Control.Monad
+import qualified Data.HashSet                as HS
+import           Data.Monoid
 
-import Text.Trifecta hiding ((:@))
-import Text.Parser.Token.Highlight
+import           Text.Parser.Token.Highlight
+import           Text.Trifecta               hiding ((:@))
 
-import qualified Bound as B
+import qualified Bound                       as B
 
-import Syntax
+import           Syntax
 
 emptyOps :: (Monad m, TokenParsing m) => IdentifierStyle m
 emptyOps = IdentifierStyle
@@ -50,13 +49,13 @@ optionalParens p = try p <|> parens p
 
 parseAnnBoundExpr :: (Monad m, TokenParsing m) => m (Tm String, B.Scope () Tm String)
 parseAnnBoundExpr = do
-  (u,t) <- brackets $ parseAnnot
+  (u,t) <- brackets parseAnnot
   e <- parseTm
-  return $ (t, u \\ e)
+  return (t, u \\ e)
 
 parseBoundExpr :: (Monad m, TokenParsing m) => m (B.Scope () Tm String)
 parseBoundExpr = do
-  u <- brackets $ identifier
+  u <- brackets identifier
   e <- parseTm
   return $ u \\ e
 

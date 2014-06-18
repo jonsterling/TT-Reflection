@@ -12,7 +12,7 @@ module Typing ( infer
               ) where
 
 import qualified Context              as Ctx
-import           Syntax               hiding (Tm, Ty, Decl)
+import           Syntax               hiding (Decl, Tm, Ty)
 import qualified Syntax               as Syn
 
 import qualified Data.Map             as Map
@@ -91,7 +91,7 @@ lookupEquation (a, b) = do
 -- over and over again. It would be a good idea to fix that.
 --
 infer' :: Tm -> Checking Ty
-infer' (V x) = lookupTy x <|> fst <$> (lookupDecl x)
+infer' (V x) = lookupTy x <|> fst <$> lookupDecl x
 infer' (Ann a s) = do
   (s', _) <- check s $ C U
   (a', _) <- check a s'
@@ -112,7 +112,7 @@ infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Ty -> Checking (Tm, Ty)
 check' (V x) ty = do
-  ty' <- lookupTy x <|> fst <$> (lookupDecl x)
+  ty' <- lookupTy x <|> fst <$> lookupDecl x
   equate ty ty'
   return (V x, ty)
 check' (Reflect p e) rho = do
@@ -173,7 +173,7 @@ whnf :: Tm -> Checking Tm
 whnf (Let (s, _) e) =
   whnf $ e // s
 whnf (Reflect p e) =
-  Reflect <$> (whnf p) <*> (whnf e)
+  Reflect <$> whnf p <*> whnf e
 whnf (f :@ a) = do
   f' <- whnf f
   case f' of

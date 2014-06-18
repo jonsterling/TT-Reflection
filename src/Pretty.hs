@@ -2,10 +2,10 @@
 
 module Pretty where
 
-import Syntax
-import Typing hiding (Type)
-import Text.PrettyPrint
-import qualified Bound as B
+import qualified Bound            as B
+import           Syntax
+import           Text.PrettyPrint
+import           Typing           hiding (Type)
 
 class Pretty a where
   pretty :: Int -> a -> Doc
