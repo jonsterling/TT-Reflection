@@ -6,7 +6,6 @@
 
 module Main where
 
-import           Compute
 import qualified Context              as Ctx
 import           Syntax
 import           Typing
@@ -16,8 +15,11 @@ import           Pretty
 import           Control.Applicative
 import           Control.Monad.Reader
 import           Data.Monoid
+import           Data.Either
 
 import System.Console.Haskeline
+import System.Environment
+
 import Text.Trifecta
 import qualified Text.PrettyPrint as PP
 
@@ -35,7 +37,17 @@ testReflection = check ty tm
     tm = Lam $ "p" \\ Reflect (V "p") (C Dot)
 
 main :: IO ()
-main = runInputT defaultSettings loop
+main = do
+  name:_ <- getArgs
+  Just res <- parseFromFile (many parseDecl) name
+  case runReaderT (runChecking (checkDecls res)) mempty of
+    Right artifacts -> do
+      putStrLn . PP.renderStyle PP.style . PP.vcat $
+        map prettyNamedTyping artifacts
+    Left err -> print err
+
+repl :: IO ()
+repl = runInputT defaultSettings loop
   where
     loop :: InputT IO ()
     loop = do

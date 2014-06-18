@@ -37,6 +37,7 @@ instance (Show a, Pretty a) => Pretty (Tm a) where
   pretty i (Lam (B.Scope e)) = text "λ" <+> pretty (i + 1) e
   pretty i (Reflect a b) = text "reflect" <+> pretty i a <+> text "in" <+> pretty i b
   pretty i (Id a b s) = text "Id" <+> pretty i s <+> pretty i a <+> pretty i b
+  pretty i (f :@ a) = pretty i f <+> pretty i a
   pretty i e = error $ "Welp: " ++ show e
 
 instance Pretty String where
@@ -47,4 +48,15 @@ prettyTyping (tm :∈ ty) = pretty 0 tm <+> text "∈" <+> pretty 0 ty
 
 prettyRealizer :: Realization -> Doc
 prettyRealizer (tm :||- ty) = pretty 0 tm <+> text "╟" <+> pretty 0 ty
+
+prettyNamedTyping :: (String, Typing) -> Doc
+prettyNamedTyping (n, t@(u :∈ s)) =
+  let (r :||- _) = extractRealizer t in
+  text "⊢" <+> text n $$
+    nest 2
+      (vcat [ text "⇓" <+> pretty 0 r
+           , text "╟" <+> pretty 0 u
+           , text "∈" <+> pretty 0 s
+           ]
+      )
 

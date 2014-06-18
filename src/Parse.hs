@@ -8,7 +8,7 @@ import Control.Applicative
 import qualified Data.HashSet as HS
 import Data.Monoid
 
-import Text.Trifecta
+import Text.Trifecta hiding ((:@))
 import Text.Parser.Token.Highlight
 
 import qualified Bound as B
@@ -89,6 +89,9 @@ parseIdentityType = do
   b <- parseTm
   return $ Id a b s
 
+parseApp :: (Monad m, TokenParsing m) => m (Tm String)
+parseApp = (:@) <$> parseTm <*> parseTm
+
 parseTm :: (Monad m, TokenParsing m) => m (Tm String)
 parseTm = optionalParens parseTm'
   where
@@ -97,5 +100,17 @@ parseTm = optionalParens parseTm'
            <|> (parseBinderExpr <?> "binder expr")
            <|> (parseReflection <?> "reflection scope")
            <|> (parseIdentityType <?> "identity type")
-           <|> (parens $ Ann <$> (parseTm <* colon) <*> parseTm <?> "annotation")
+           <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
+           <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")
+
+parseDecl :: (Monad m, TokenParsing m) => m (Decl String)
+parseDecl = Decl
+        <$> (turnstile *> identifier)
+        <*> (memberOf *> parseTm)
+        <*> (evals *> parseTm)
+  where
+    turnstile = reserved "|-" <|> reserved "⊢"
+    memberOf = reserved "in" <|> reserved "∈"
+    evals = reserved "~>" <|> reserved "⇓"
+

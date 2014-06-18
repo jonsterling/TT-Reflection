@@ -9,9 +9,9 @@ module Typing ( infer
               , Typing(..)
               , Realization(..)
               , extractRealizer
+              , checkDecls
               ) where
 
-import           Compute
 import qualified Context              as Ctx
 import           Syntax               hiding (Tm)
 import qualified Syntax               as Syn
@@ -25,6 +25,8 @@ import           Control.Monad.Reader
 import           Data.Monoid
 import           Data.Traversable
 
+import Debug.Trace
+
 type Name = String
 type Tm = Syn.Tm Name
 
@@ -32,7 +34,7 @@ type Context = Ctx.Context Name Syn.Tm
 newtype Checking x =
   MkChecking
   { runChecking :: ReaderT Context (Either String) x
-  } deriving (Monad, Applicative, Functor, MonadReader Context)
+  } deriving (Monad, Applicative, Functor, MonadReader Context, Alternative)
 
 data Typing = Tm :∈ Tm
 data Realization = Tm :||- Tm
@@ -46,20 +48,29 @@ err :: String -> Checking x
 err e = MkChecking $ ReaderT $ \_ -> Left e
 
 infer :: Tm -> Checking Tm
-infer e = infer' (whnf e)
+infer e = infer' =<< whnf e
 
 check :: Tm -> Tm -> Checking Typing
-check ty t = check' (whnf ty) (whnf t)
+check ty t = do
+  ty' <- whnf ty
+  t' <- whnf t
+  check' ty' t'
 
 extendCtx :: Name -> Tm -> Checking a -> Checking a
 extendCtx x xty =
   local $ \ctx ->
     ctx { Ctx.typings = Map.insert x xty (Ctx.typings ctx) }
 
-addEquation :: (Tm,Tm) -> Checking a -> Checking a
-addEquation (a,b) =
+extendSignature :: Name -> (Tm, Tm) -> Checking a -> Checking a
+extendSignature x p =
   local $ \ctx ->
-    ctx { Ctx.equations = Set.insert (whnf a, whnf b) (Ctx.equations ctx) }
+    ctx { Ctx.signature = Map.insert x p (Ctx.signature ctx) }
+
+addEquation :: (Tm,Tm) -> Checking a -> Checking a
+addEquation (a,b) c = do
+  a' <- whnf a
+  b' <- whnf b
+  local (\ctx -> ctx { Ctx.equations = Set.insert (a', b') (Ctx.equations ctx) }) c
 
 lookupTy :: Name -> Checking Tm
 lookupTy x = do
@@ -68,15 +79,24 @@ lookupTy x = do
     Just ty -> return ty
     Nothing -> err $ "No such variable " ++ show x ++ "in context"
 
+lookupDecl :: Name -> Checking (Tm, Tm)
+lookupDecl x = do
+  mty <- fmap (Map.lookup x) (asks Ctx.signature)
+  case mty of
+    Just ty -> return ty
+    Nothing -> err $ "No such declaration " ++ show x ++ "in signature"
+
 lookupEquation :: (Tm, Tm) -> Checking Bool
-lookupEquation (a, b) =
-  fmap (Set.member (whnf a, whnf b)) (asks Ctx.equations)
+lookupEquation (a, b) = do
+  a' <- whnf a
+  b' <- whnf b
+  fmap (Set.member (a, b)) (asks Ctx.equations)
 
 -- This is a very inefficient type checker! It computes the whnf of terms
 -- over and over again. It would be a good idea to fix that.
 --
 infer' :: Tm -> Checking Tm
-infer' (V x) = lookupTy x
+infer' (V x) = lookupTy x <|> snd <$> (lookupDecl x)
 infer' (Ann a s) = do
   s' :∈ _ <- check (C U) s
   a' :∈ _ <- check s' a
@@ -97,7 +117,7 @@ infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Tm -> Checking Typing
 check' ty (V x) = do
-  ty' <- lookupTy x
+  ty' <- lookupTy x <|> snd <$> (lookupDecl x)
   equate ty ty'
   return $ V x :∈  ty
 check' rho (Reflect p e) = do
@@ -119,6 +139,13 @@ check' ty t = do
   equate ty tty
   return $ t :∈ tty
 
+checkDecls :: [Decl Name] -> Checking [(Name, Typing)]
+checkDecls [] = return []
+checkDecls (Decl n ty tm : ds) = do
+  c <- check ty tm
+  cs <- extendSignature n (ty, tm) $ checkDecls ds
+  return $ (n, c) : cs
+
 extractRealizer :: Typing -> Realization
 extractRealizer (u :∈ s) = extract u :||- s
   where
@@ -134,8 +161,9 @@ extractRealizer (u :∈ s) = extract u :||- s
     extract e = e
 
 ensureIdentity :: Tm -> Checking (Tm, Tm, Tm)
-ensureIdentity ty =
-  case whnf ty of
+ensureIdentity ty = do
+  ty' <- whnf ty
+  case ty' of
     Id a b s -> return (a, b, s)
     _ -> err "Expected identity type"
 
@@ -145,4 +173,27 @@ equate e1 e2 =
     reflected <- lookupEquation (e1,e2)
     unless reflected $
       err $ "Not equal: " ++ show e1 ++ ", " ++ show e2
+
+
+whnf :: Tm -> Checking Tm
+whnf (Let (s, _) e) = whnf $ e // s
+whnf (Reflect p e) = Reflect <$> (whnf p) <*> (whnf e)
+whnf (f :@ a) = do
+  f' <- whnf f
+  case f' of
+    Lam e -> whnf $ e // a
+    _     -> return $ f' :@ a
+whnf d@(Split e p) = do
+  p' <- whnf p
+  case p' of
+    Pair a b -> whnf $ e /// (a,b)
+    _ -> return d
+whnf (V x) = do
+  rho <- asks Ctx.signature
+  return $
+    case Map.lookup x rho of
+      Just (_, tm) -> tm
+      Nothing -> V x
+whnf e = return e
+
 

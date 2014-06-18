@@ -48,6 +48,8 @@ data Tm a
   | Tm a :@ Tm a
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
+data Decl a = Decl a (Tm a) (Tm a)
+
 instance Eq1 Tm
 instance Ord1 Tm
 instance Show1 Tm
