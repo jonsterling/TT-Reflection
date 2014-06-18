@@ -25,8 +25,6 @@ import           Control.Monad.Reader
 import           Data.Monoid
 import           Data.Traversable
 
-import Debug.Trace
-
 type Name = String
 type Tm = Syn.Tm Name
 
@@ -70,18 +68,19 @@ addEquation :: (Tm,Tm) -> Checking a -> Checking a
 addEquation (a,b) c = do
   a' <- whnf a
   b' <- whnf b
-  local (\ctx -> ctx { Ctx.equations = Set.insert (a', b') (Ctx.equations ctx) }) c
+  flip local c $ \ctx ->
+    ctx { Ctx.equations = Set.insert (a', b') (Ctx.equations ctx) }
 
 lookupTy :: Name -> Checking Tm
 lookupTy x = do
-  mty <- fmap (Map.lookup x) (asks Ctx.typings)
+  mty <- Map.lookup x <$> asks Ctx.typings
   case mty of
     Just ty -> return ty
     Nothing -> err $ "No such variable " ++ show x ++ "in context"
 
 lookupDecl :: Name -> Checking (Tm, Tm)
 lookupDecl x = do
-  mty <- fmap (Map.lookup x) (asks Ctx.signature)
+  mty <- Map.lookup x <$> asks Ctx.signature
   case mty of
     Just ty -> return ty
     Nothing -> err $ "No such declaration " ++ show x ++ "in signature"
@@ -90,7 +89,7 @@ lookupEquation :: (Tm, Tm) -> Checking Bool
 lookupEquation (a, b) = do
   a' <- whnf a
   b' <- whnf b
-  fmap (Set.member (a, b)) (asks Ctx.equations)
+  Set.member (a, b) <$> asks Ctx.equations
 
 -- This is a very inefficient type checker! It computes the whnf of terms
 -- over and over again. It would be a good idea to fix that.
@@ -174,10 +173,11 @@ equate e1 e2 =
     unless reflected $
       err $ "Not equal: " ++ show e1 ++ ", " ++ show e2
 
-
 whnf :: Tm -> Checking Tm
-whnf (Let (s, _) e) = whnf $ e // s
-whnf (Reflect p e) = Reflect <$> (whnf p) <*> (whnf e)
+whnf (Let (s, _) e) =
+  whnf $ e // s
+whnf (Reflect p e) =
+  Reflect <$> (whnf p) <*> (whnf e)
 whnf (f :@ a) = do
   f' <- whnf f
   case f' of
