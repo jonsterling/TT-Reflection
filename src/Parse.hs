@@ -48,10 +48,10 @@ parseBinder = Pi <$ (reserved "pi" <|> reserved "Π")
 optionalParens :: TokenParsing m => m a -> m a
 optionalParens p = try p <|> parens p
 
-parseAnnBoundExpr :: (Monad m, TokenParsing m) => m (Type String, B.Scope () Type String)
+parseAnnBoundExpr :: (Monad m, TokenParsing m) => m (Tm String, B.Scope () Tm String)
 parseAnnBoundExpr = do
   (u,t) <- brackets $ parseAnnot
-  e <- Type <$> parseTm
+  e <- parseTm
   return $ (t, u \\ e)
 
 parseBoundExpr :: (Monad m, TokenParsing m) => m (B.Scope () Tm String)
@@ -60,8 +60,8 @@ parseBoundExpr = do
   e <- parseTm
   return $ u \\ e
 
-parseAnnot :: (Monad m, TokenParsing m) => m (String, Type String)
-parseAnnot = (,) <$> identifier <* colon <*> (Type <$> parseTm)
+parseAnnot :: (Monad m, TokenParsing m) => m (String, Tm String)
+parseAnnot = (,) <$> identifier <* colon <*> parseTm
 
 parseLambda :: (Monad m, TokenParsing m) => m ()
 parseLambda = reserved "lam"
@@ -84,7 +84,7 @@ parseReflection = Reflect
 parseIdentityType :: (Monad m, TokenParsing m) => m (Tm String)
 parseIdentityType = do
   reserved "Id"
-  s <- Type <$> parseTm
+  s <- parseTm
   a <- parseTm
   b <- parseTm
   return $ Id a b s
@@ -100,14 +100,14 @@ parseTm = optionalParens parseTm'
            <|> (parseBinderExpr <?> "binder expr")
            <|> (parseReflection <?> "reflection scope")
            <|> (parseIdentityType <?> "identity type")
-           <|> (try (parens $ Ann <$> (parseTm <* colon) <*> (Type <$> parseTm)) <?> "annotation")
+           <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")
 
 parseDecl :: (Monad m, TokenParsing m) => m (Decl String)
 parseDecl = Decl
         <$> (turnstile *> identifier)
-        <*> (memberOf *> (Type <$> parseTm))
+        <*> (memberOf *> parseTm)
         <*> (evals *> parseTm)
   where
     turnstile = reserved "|-" <|> reserved "⊢"

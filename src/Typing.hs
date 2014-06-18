@@ -29,7 +29,8 @@ type Name = String
 type Tm = Syn.Tm Name
 type Type = Syn.Type Name
 
-type Context = Ctx.Context Name Syn.Tm Syn.Type
+type Context = Ctx.Context Name Syn.Tm Syn.Tm
+
 newtype Checking x =
   MkChecking
   { runChecking :: ReaderT Context (Either String) x
@@ -44,10 +45,10 @@ infer :: Tm -> Checking Type
 infer e = infer' =<< whnf e
 
 check :: Tm -> Type -> Checking (Tm, Type)
-check t (Syn.Type ty) = do
+check t ty = do
   ty' <- whnf ty
   t' <- whnf t
-  check' t' (Syn.Type ty')
+  check' t' ty'
 
 extendCtx :: Name -> Type -> Checking a -> Checking a
 extendCtx x xty =
@@ -92,45 +93,45 @@ lookupEquation (a, b) = do
 infer' :: Tm -> Checking Type
 infer' (V x) = lookupTy x <|> fst <$> (lookupDecl x)
 infer' (Ann a s) = do
-  (s', _) <- check (untype s) (Syn.Type (C U))
-  (a', _) <- check a (Syn.Type s')
-  return (Syn.Type s')
-infer' (C t) | t  `elem` [U, Zero, One, Two] = return . Syn.Type $ C U
-infer' (C Dot) = return . Syn.Type $ C One
-infer' (C x) | x `elem` [Tt, Ff] = return . Syn.Type $ C Two
+  (s', _) <- check s $ C U
+  (a', _) <- check a s'
+  return s'
+infer' (C t) | t  `elem` [U, Zero, One, Two] = return $ C U
+infer' (C Dot) = return $ C One
+infer' (C x) | x `elem` [Tt, Ff] = return $ C Two
 infer' (B _ sg tau) = do
-  _ <- check (untype sg) (Syn.Type (C U))
-  _ <- extendCtx "x" sg $ check (untype $ tau // Syn.Type (V "x")) (Syn.Type $ C U)
-  return . Syn.Type $ C U
+  _ <- check sg $ C U
+  _ <- extendCtx "x" sg $ check (tau // V "x") $ C U
+  return $ C U
 infer' (Id a b s) = do
-  (s', _) <- check (untype s) (Syn.Type (C U))
-  _ <- check a (Syn.Type s')
-  _ <- check b (Syn.Type s')
-  return . Syn.Type $ C U
+  (s', _) <- check s $ C U
+  _ <- check a s'
+  _ <- check b s'
+  return $ C U
 infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Type -> Checking (Tm, Type)
 check' (V x) ty = do
   ty' <- lookupTy x <|> fst <$> (lookupDecl x)
-  equate (untype ty) (untype ty')
+  equate ty ty'
   return (V x, ty)
 check' (Reflect p e) rho = do
   t <- infer p
   (a,b,s) <- ensureIdentity t
   (e', _) <- addEquation (a,b) $ check e rho
   return (Reflect p e', rho)
-check' (C Refl) (Syn.Type (Id a b s)) = do
-  (s', _) <- check (untype s) (Syn.Type (C U))
-  (a', _) <- check a (Syn.Type s')
-  (b', _) <- check b (Syn.Type s')
+check' (C Refl) (Id a b s) = do
+  (s', _) <- check s $ C U
+  (a', _) <- check a s'
+  (b', _) <- check b s'
   equate a' b'
-  return (C Refl, Syn.Type $ Id a' b' (Syn.Type s'))
-check' (Lam e) (Syn.Type (B Pi sg tau)) = do
-  (e', _) <- extendCtx "x" sg $ check (e // V "x") (tau // Syn.Type (V "x"))
-  return (Lam ("x" \\ e'), Syn.Type $ B Pi sg tau)
+  return (C Refl, Id a' b' s')
+check' (Lam e) (B Pi sg tau) = do
+  (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
+  return (Lam ("x" \\ e'), B Pi sg tau)
 check' t ty = do
   tty <- infer t
-  equate (untype ty) (untype tty)
+  equate ty tty
   return (t, tty)
 
 checkDecls :: [Decl Name] -> Checking [(Name, Tm, Type)]
@@ -145,8 +146,8 @@ extractRealizer = Realizer . extract
   where
     extract (Ann a t) = extract a
     extract (Pair a b) = Pair (extract a) (extract b)
-    extract (B b s t) = B b (extractTy s) $ "x" \\ extractTy (t // Syn.Type (V "x"))
-    extract (Id a b s) = Id (extract a) (extract b) (extractTy s)
+    extract (B b s t) = B b (extract s) $ "x" \\ extract (t // V "x")
+    extract (Id a b s) = Id (extract a) (extract b) (extract s)
     extract (Reflect p e) = extract e
     extract (Split e p) = Split (abstract2 ("x","y") (extract (instantiate2 (V "x", V "y") e))) (extract p)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
@@ -154,11 +155,8 @@ extractRealizer = Realizer . extract
     extract (f :@ a) = extract f :@ extract a
     extract e = e
 
-    extractTy = Syn.Type . extract . Syn.untype
-
-
 ensureIdentity :: Type -> Checking (Tm, Tm, Type)
-ensureIdentity (Syn.Type ty) = do
+ensureIdentity ty = do
   ty' <- whnf ty
   case ty' of
     Id a b s -> return (a, b, s)

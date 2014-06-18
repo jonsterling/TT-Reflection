@@ -42,7 +42,7 @@ repl = runInputT defaultSettings loop
       Just tyStr <- getInputLine "∈ "
 
       let rtm = parseString parseTm mempty tmStr
-      let rty = parseString (Type <$> parseTm) mempty tyStr
+      let rty = parseString parseTm mempty tyStr
 
       outputStrLn "--------------------------"
 

@@ -40,9 +40,6 @@ instance (Show a, Pretty a) => Pretty (Tm a) where
   pretty i (f :@ a) = pretty i f <+> pretty i a
   pretty i e = error $ "Welp: " ++ show e
 
-instance (Show a, Pretty a) => Pretty (Type a) where
-  pretty i (Type e) = pretty i e
-
 instance Pretty String where
   pretty _ = text
 
