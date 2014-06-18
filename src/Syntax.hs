@@ -50,8 +50,8 @@ data Tm a
   | Tm a :@ Tm a
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
-type Type a = Tm a
-data Decl a = Decl a (Type a) (Tm a)
+type Ty a = Tm a
+type Decl a = (a, Ty a, Tm a)
 
 instance Eq1 Tm
 instance Ord1 Tm

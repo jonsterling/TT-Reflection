@@ -1,19 +1,18 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE UnicodeSyntax              #-}
 
 module Typing ( infer
               , check
               , Checking(..)
-              , Type(..)
+              , Ty(..)
               , Realizer(..)
               , extractRealizer
               , checkDecls
               ) where
 
 import qualified Context              as Ctx
-import           Syntax               hiding (Tm, Type)
+import           Syntax               hiding (Tm, Ty, Decl)
 import qualified Syntax               as Syn
 
 import qualified Data.Map             as Map
@@ -27,7 +26,8 @@ import           Data.Traversable
 
 type Name = String
 type Tm = Syn.Tm Name
-type Type = Syn.Type Name
+type Ty = Syn.Ty Name
+type Decl = Syn.Decl Name
 
 type Context = Ctx.Context Name Syn.Tm Syn.Tm
 
@@ -41,21 +41,21 @@ newtype Realizer = Realizer { unrealize :: Tm }
 err :: String -> Checking x
 err e = MkChecking $ ReaderT $ \_ -> Left e
 
-infer :: Tm -> Checking Type
+infer :: Tm -> Checking Ty
 infer e = infer' =<< whnf e
 
-check :: Tm -> Type -> Checking (Tm, Type)
+check :: Tm -> Ty -> Checking (Tm, Ty)
 check t ty = do
   ty' <- whnf ty
   t' <- whnf t
   check' t' ty'
 
-extendCtx :: Name -> Type -> Checking a -> Checking a
+extendCtx :: Name -> Ty -> Checking a -> Checking a
 extendCtx x xty =
   local $ \ctx ->
     ctx { Ctx.typings = Map.insert x xty (Ctx.typings ctx) }
 
-extendSignature :: Name -> (Type, Tm) -> Checking a -> Checking a
+extendSignature :: Name -> (Ty, Tm) -> Checking a -> Checking a
 extendSignature x p =
   local $ \ctx ->
     ctx { Ctx.signature = Map.insert x p (Ctx.signature ctx) }
@@ -67,14 +67,14 @@ addEquation (a,b) c = do
   flip local c $ \ctx ->
     ctx { Ctx.equations = Set.insert (a', b') (Ctx.equations ctx) }
 
-lookupTy :: Name -> Checking Type
+lookupTy :: Name -> Checking Ty
 lookupTy x = do
   mty <- Map.lookup x <$> asks Ctx.typings
   case mty of
     Just ty -> return ty
     Nothing -> err $ "No such variable " ++ show x ++ "in context"
 
-lookupDecl :: Name -> Checking (Type, Tm)
+lookupDecl :: Name -> Checking (Ty, Tm)
 lookupDecl x = do
   md <- Map.lookup x <$> asks Ctx.signature
   case md of
@@ -90,7 +90,7 @@ lookupEquation (a, b) = do
 -- This is a very inefficient type checker! It computes the whnf of terms
 -- over and over again. It would be a good idea to fix that.
 --
-infer' :: Tm -> Checking Type
+infer' :: Tm -> Checking Ty
 infer' (V x) = lookupTy x <|> fst <$> (lookupDecl x)
 infer' (Ann a s) = do
   (s', _) <- check s $ C U
@@ -110,7 +110,7 @@ infer' (Id a b s) = do
   return $ C U
 infer' e = err $ "Cannot infer type of " ++ show e
 
-check' :: Tm -> Type -> Checking (Tm, Type)
+check' :: Tm -> Ty -> Checking (Tm, Ty)
 check' (V x) ty = do
   ty' <- lookupTy x <|> fst <$> (lookupDecl x)
   equate ty ty'
@@ -134,12 +134,12 @@ check' t ty = do
   equate ty tty
   return (t, tty)
 
-checkDecls :: [Decl Name] -> Checking [(Name, Tm, Type)]
+checkDecls :: [Decl] -> Checking [Decl]
 checkDecls [] = return []
-checkDecls (Decl n ty tm : ds) = do
+checkDecls ((n, ty, tm) : ds) = do
   (a,s) <- check tm ty
   cs <- extendSignature n (ty, tm) $ checkDecls ds
-  return $ (n,a,s) : cs
+  return $ (n,s,a) : cs
 
 extractRealizer :: Tm -> Realizer
 extractRealizer = Realizer . extract
@@ -155,7 +155,7 @@ extractRealizer = Realizer . extract
     extract (f :@ a) = extract f :@ extract a
     extract e = e
 
-ensureIdentity :: Type -> Checking (Tm, Tm, Type)
+ensureIdentity :: Ty -> Checking (Tm, Tm, Ty)
 ensureIdentity ty = do
   ty' <- whnf ty
   case ty' of

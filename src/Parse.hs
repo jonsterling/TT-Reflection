@@ -105,7 +105,7 @@ parseTm = optionalParens parseTm'
            <|> (V <$> identifier <?> "variable")
 
 parseDecl :: (Monad m, TokenParsing m) => m (Decl String)
-parseDecl = Decl
+parseDecl = (,,)
         <$> (turnstile *> identifier)
         <*> (memberOf *> parseTm)
         <*> (evals *> parseTm)

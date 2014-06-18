@@ -43,8 +43,8 @@ instance (Show a, Pretty a) => Pretty (Tm a) where
 instance Pretty String where
   pretty _ = text
 
-prettyNamedTyping :: (String, Tm String, Type String) -> Doc
-prettyNamedTyping (n, u, s) =
+prettyDecl :: Decl String -> Doc
+prettyDecl (n, s, u) =
   let Realizer r = extractRealizer u in
   text "⊢" <+> text n $$
     nest 2

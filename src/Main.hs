@@ -30,7 +30,7 @@ main = do
   case runReaderT (runChecking (checkDecls res)) mempty of
     Right artifacts -> do
       putStrLn . PP.renderStyle PP.style . PP.vcat $
-        map prettyNamedTyping artifacts
+        prettyDecl <$> artifacts
     Left err -> print err
 
 repl :: IO ()
@@ -52,7 +52,7 @@ repl = runInputT defaultSettings loop
           case runReaderT (runChecking chk) mempty of
             Right tder@(u, s) -> do
               let Realizer realizer = extractRealizer u
-              outputStrLn $ "Typing: " ++ PP.renderStyle PP.style (prettyNamedTyping ("_", u, s))
+              outputStrLn $ "Typing: " ++ PP.renderStyle PP.style (prettyDecl ("_",s,u))
             Left err -> outputStrLn err
         _ -> outputStrLn "Parse error"
 
