@@ -63,10 +63,10 @@ repl = runInputT defaultSettings loop
         (Success tm, Success ty) -> do
           let chk = check ty tm
           case runReaderT (runChecking chk) mempty of
-            Right tder -> do
-              let realizer = extractRealizer tder
+            Right tder@(u :∈ s) -> do
+              let Realizer realizer = extractRealizer u
               outputStrLn $ "Typing: " ++ PP.renderStyle PP.style (prettyTyping tder)
-              outputStrLn $ "Realizer: " ++ PP.renderStyle PP.style (prettyRealizer realizer)
+              outputStrLn $ "Realizer: " ++ PP.renderStyle PP.style (pretty 0 realizer)
             Left err -> outputStrLn err
         _ -> outputStrLn "Parse error"
 

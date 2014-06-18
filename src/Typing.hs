@@ -7,7 +7,7 @@ module Typing ( infer
               , check
               , Checking(..)
               , Typing(..)
-              , Realization(..)
+              , Realizer(..)
               , extractRealizer
               , checkDecls
               ) where
@@ -35,12 +35,11 @@ newtype Checking x =
   } deriving (Monad, Applicative, Functor, MonadReader Context, Alternative)
 
 data Typing = Tm :∈ Tm
-data Realization = Tm :||- Tm
+
+newtype Realizer = Realizer { unrealize :: Tm }
 
 instance Show Typing where
   show (tm :∈ ty) = show tm ++ " ∈ " ++ show ty
-instance Show Realization where
-  show (tm :||- ty) = show tm ++ " ╟ " ++ show ty
 
 err :: String -> Checking x
 err e = MkChecking $ ReaderT $ \_ -> Left e
@@ -145,8 +144,8 @@ checkDecls (Decl n ty tm : ds) = do
   cs <- extendSignature n (ty, tm) $ checkDecls ds
   return $ (n, c) : cs
 
-extractRealizer :: Typing -> Realization
-extractRealizer (u :∈ s) = extract u :||- s
+extractRealizer :: Tm -> Realizer
+extractRealizer = Realizer . extract
   where
     extract (Ann a t) = extract a
     extract (Pair a b) = Pair (extract a) (extract b)
@@ -195,5 +194,4 @@ whnf (V x) = do
       Just (_, tm) -> tm
       Nothing -> V x
 whnf e = return e
-
 
