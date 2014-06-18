@@ -48,7 +48,7 @@ repl = runInputT defaultSettings loop
 
       case (rtm, rty) of
         (Success tm, Success ty) -> do
-          let chk = check ty tm
+          let chk = check tm ty
           case runReaderT (runChecking chk) mempty of
             Right tder@(u, s) -> do
               let Realizer realizer = extractRealizer u

@@ -43,11 +43,11 @@ err e = MkChecking $ ReaderT $ \_ -> Left e
 infer :: Tm -> Checking Type
 infer e = infer' =<< whnf e
 
-check :: Type -> Tm -> Checking (Tm, Type)
-check (Syn.Type ty) t = do
+check :: Tm -> Type -> Checking (Tm, Type)
+check t (Syn.Type ty) = do
   ty' <- whnf ty
   t' <- whnf t
-  check' (Syn.Type ty') t'
+  check' t' (Syn.Type ty')
 
 extendCtx :: Name -> Type -> Checking a -> Checking a
 extendCtx x xty =
@@ -92,43 +92,43 @@ lookupEquation (a, b) = do
 infer' :: Tm -> Checking Type
 infer' (V x) = lookupTy x <|> fst <$> (lookupDecl x)
 infer' (Ann a s) = do
-  (s', _) <- check (Syn.Type (C U)) (untype s)
-  (a', _) <- check (Syn.Type s') a
+  (s', _) <- check (untype s) (Syn.Type (C U))
+  (a', _) <- check a (Syn.Type s')
   return (Syn.Type s')
 infer' (C t) | t  `elem` [U, Zero, One, Two] = return . Syn.Type $ C U
 infer' (C Dot) = return . Syn.Type $ C One
 infer' (C x) | x `elem` [Tt, Ff] = return . Syn.Type $ C Two
 infer' (B _ sg tau) = do
-  _ <- check (Syn.Type (C U)) (untype sg)
-  _ <- extendCtx "x" sg $ check (Syn.Type $ C U) $ untype $ tau // Syn.Type (V "x")
+  _ <- check (untype sg) (Syn.Type (C U))
+  _ <- extendCtx "x" sg $ check (untype $ tau // Syn.Type (V "x")) (Syn.Type $ C U)
   return . Syn.Type $ C U
 infer' (Id a b s) = do
-  (s', _) <- check (Syn.Type (C U)) (untype s)
-  _ <- check (Syn.Type s') a
-  _ <- check (Syn.Type s') b
+  (s', _) <- check (untype s) (Syn.Type (C U))
+  _ <- check a (Syn.Type s')
+  _ <- check b (Syn.Type s')
   return . Syn.Type $ C U
 infer' e = err $ "Cannot infer type of " ++ show e
 
-check' :: Type -> Tm -> Checking (Tm, Type)
-check' ty (V x) = do
+check' :: Tm -> Type -> Checking (Tm, Type)
+check' (V x) ty = do
   ty' <- lookupTy x <|> fst <$> (lookupDecl x)
   equate (untype ty) (untype ty')
   return (V x, ty)
-check' rho (Reflect p e) = do
+check' (Reflect p e) rho = do
   t <- infer p
   (a,b,s) <- ensureIdentity t
-  (e', _) <- addEquation (a,b) $ check rho e
+  (e', _) <- addEquation (a,b) $ check e rho
   return (Reflect p e', rho)
-check' (Syn.Type (Id a b s)) (C Refl) = do
-  (s', _) <- check (Syn.Type (C U)) (untype s)
-  (a', _) <- check (Syn.Type s') a
-  (b', _) <- check (Syn.Type s') b
+check' (C Refl) (Syn.Type (Id a b s)) = do
+  (s', _) <- check (untype s) (Syn.Type (C U))
+  (a', _) <- check a (Syn.Type s')
+  (b', _) <- check b (Syn.Type s')
   equate a' b'
   return (C Refl, Syn.Type $ Id a' b' (Syn.Type s'))
-check' (Syn.Type (B Pi sg tau)) (Lam e) = do
-  (e', _) <- extendCtx "x" sg $ check (tau // Syn.Type (V "x")) (e // V "x")
+check' (Lam e) (Syn.Type (B Pi sg tau)) = do
+  (e', _) <- extendCtx "x" sg $ check (e // V "x") (tau // Syn.Type (V "x"))
   return (Lam ("x" \\ e'), Syn.Type $ B Pi sg tau)
-check' ty t = do
+check' t ty = do
   tty <- infer t
   equate (untype ty) (untype tty)
   return (t, tty)
@@ -136,7 +136,7 @@ check' ty t = do
 checkDecls :: [Decl Name] -> Checking [(Name, Tm, Type)]
 checkDecls [] = return []
 checkDecls (Decl n ty tm : ds) = do
-  (a,s) <- check ty tm
+  (a,s) <- check tm ty
   cs <- extendSignature n (ty, tm) $ checkDecls ds
   return $ (n,a,s) : cs
 
