@@ -1,8 +1,8 @@
-{-# LANGUAGE DeriveFoldable         #-}
-{-# LANGUAGE DeriveFunctor          #-}
-{-# LANGUAGE DeriveTraversable      #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Syntax where
 
@@ -48,7 +48,8 @@ data Tm a
   | Tm a :@ Tm a
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
-data Decl a = Decl a (Tm a) (Tm a)
+type Ty a = Tm a
+type Decl a = (a, Ty a, Tm a)
 
 instance Eq1 Tm
 instance Ord1 Tm

@@ -2,10 +2,10 @@
 
 module Pretty where
 
-import Syntax
-import Typing
-import Text.PrettyPrint
-import qualified Bound as B
+import qualified Bound            as B
+import           Syntax
+import           Text.PrettyPrint
+import           Typing           hiding (Type)
 
 class Pretty a where
   pretty :: Int -> a -> Doc
@@ -43,20 +43,14 @@ instance (Show a, Pretty a) => Pretty (Tm a) where
 instance Pretty String where
   pretty _ = text
 
-prettyTyping :: Typing -> Doc
-prettyTyping (tm :∈ ty) = pretty 0 tm <+> text "∈" <+> pretty 0 ty
-
-prettyRealizer :: Realization -> Doc
-prettyRealizer (tm :||- ty) = pretty 0 tm <+> text "╟" <+> pretty 0 ty
-
-prettyNamedTyping :: (String, Typing) -> Doc
-prettyNamedTyping (n, t@(u :∈ s)) =
-  let (r :||- _) = extractRealizer t in
+prettyDecl :: Decl String -> Doc
+prettyDecl (n, s, u) =
+  let Realizer r = extractRealizer u in
   text "⊢" <+> text n $$
     nest 2
       (vcat [ text "⇓" <+> pretty 0 r
-           , text "╟" <+> pretty 0 u
-           , text "∈" <+> pretty 0 s
-           ]
+            , text "╟" <+> pretty 0 u
+            , text "∈" <+> pretty 0 s
+            ]
       )
 
