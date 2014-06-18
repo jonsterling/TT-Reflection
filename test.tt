@@ -1,4 +1,4 @@
-|- id in pi[s:U] pi [x:`1] `1
+|- id in pi[s:U] pi [x:s] s
 ~> lam[s] lam[x] x
 
 |- test in `1
