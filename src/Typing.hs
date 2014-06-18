@@ -96,7 +96,7 @@ lookupEquation (a, b) = do
 -- over and over again. It would be a good idea to fix that.
 --
 infer' :: Tm -> Checking Tm
-infer' (V x) = lookupTy x <|> snd <$> (lookupDecl x)
+infer' (V x) = lookupTy x <|> fst <$> (lookupDecl x)
 infer' (Ann a s) = do
   s' :∈ _ <- check (C U) s
   a' :∈ _ <- check s' a
@@ -117,7 +117,7 @@ infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Tm -> Checking Typing
 check' ty (V x) = do
-  ty' <- lookupTy x <|> snd <$> (lookupDecl x)
+  ty' <- lookupTy x <|> fst <$> (lookupDecl x)
   equate ty ty'
   return $ V x :∈  ty
 check' rho (Reflect p e) = do
