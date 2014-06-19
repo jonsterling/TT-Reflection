@@ -1,56 +1,102 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Pretty where
+module Pretty ( Pretty(..)
+              , Fresh
+              , runFresh
+              ) where
 
-import qualified Bound            as B
+import qualified Bound                as B
 import           Syntax
 import           Text.PrettyPrint
-import           Typing           hiding (Type)
+import           Typing               hiding (Tm, Type)
+
+import           Control.Applicative
+import           Control.Monad.Reader
+import qualified Data.Char            as C
+import qualified Data.Digits          as D
+
+newtype Fresh a = Fresh { runFreshWith :: Int -> a }
+  deriving (Applicative, Functor, Monad, MonadReader Int)
+
+runFresh :: Fresh a -> a
+runFresh = flip runFreshWith (-1)
+
+scope :: Fresh a -> Fresh a
+scope = local succ
+
+var :: Fresh String
+var = asks $ map (C.chr . (+ 97)) . digits
+  where
+    digits 0 = [0]
+    digits i = D.digits 26 i
 
 class Pretty a where
-  pretty :: Int -> a -> Doc
+  pretty :: a -> Fresh Doc
 
 instance Pretty Binder where
-  pretty i Pi = text "Π"
-  pretty i Sg = text "Σ"
+  pretty Pi = pure $ text "Π"
+  pretty Sg = pure $ text "Σ"
 
 instance Pretty Constant where
-  pretty i Zero = text "𝟘"
-  pretty i One = text "𝟙"
-  pretty i Two = text "𝟚"
-  pretty i U = text "𝕌"
-  pretty i Tt = text "tt"
-  pretty i Ff = text "ff"
-  pretty i Dot = text "♦"
-  pretty i Refl = text "refl"
+  pretty Zero = pure $ text "𝟘"
+  pretty One  = pure $ text "𝟙"
+  pretty Two  = pure $ text "𝟚"
+  pretty U    = pure $ text "𝕌"
+  pretty Tt   = pure $ text "tt"
+  pretty Ff   = pure $ text "ff"
+  pretty Dot  = pure $ text "♦"
+  pretty Refl = pure $ text "refl"
 
-instance Pretty a => Pretty (B.Var () a) where
-  pretty i (B.B x) = text $ "@" ++ show i
-  pretty i (B.F x) = pretty i x
-
-instance (Show a, Pretty a) => Pretty (Tm a) where
-  pretty i (V a) = pretty i a
-  pretty i (C c) = pretty i c
-  pretty i (Ann a s) = parens $ pretty i a <+> colon <+> pretty i s
-  pretty i (Pair a b) = text "〈" <+> pretty i a <+> comma <+> pretty i b <+> text "〉"
-  pretty i (B b s (B.Scope e)) = pretty i b <> brackets (pretty i s) <+> pretty (i + 1) e
-  pretty i (Lam (B.Scope e)) = text "λ" <+> pretty (i + 1) e
-  pretty i (Reflect a b) = text "reflect" <+> pretty i a <+> text "in" <+> pretty i b
-  pretty i (Id a b s) = text "Id" <+> pretty i s <+> pretty i a <+> pretty i b
-  pretty i (f :@ a) = pretty i f <+> pretty i a
-  pretty i e = error $ "Welp: " ++ show e
+instance Pretty (Tm String) where
+  pretty (V a) = pretty a
+  pretty (C c) = pretty c
+  pretty (Ann a s) = do
+    a' <- pretty a
+    s' <- pretty s
+    pure . parens $ a' <+> colon <+> s'
+  pretty (Pair a b) = do
+    a' <- pretty a
+    b' <- pretty b
+    pure $ text "〈" <+> a' <+> comma <+> b' <+> text "〉"
+  pretty (B b s e) = do
+    b' <- pretty b
+    s' <- pretty s
+    scope $ do
+      x  <- var
+      e' <- pretty (e // V x)
+      pure $ b' <> brackets (text x <> colon <> s') <+> e'
+  pretty (Lam e) = scope $ do
+    x  <- var
+    e' <- pretty (e // V x)
+    pure $ text "λ" <> brackets (text x) <+> e'
+  pretty (Reflect a b) = do
+    a' <- pretty a
+    b' <- pretty b
+    pure $ text "reflect" <+> a' <+> text "in" <+> b'
+  pretty (Id a b s) = do
+    s' <- pretty s
+    a' <- pretty a
+    b' <- pretty b
+    pure $ text "Id" <+> s' <+> a' <+> b'
+  pretty (f :@ a) = (<+>) <$> pretty f <*> pretty a
+  pretty e = error $ "Welp: " ++ show e
 
 instance Pretty String where
-  pretty _ = text
+  pretty = return . text
 
-prettyDecl :: Decl String -> Doc
-prettyDecl (n, s, u) =
-  let Realizer r = extractRealizer u in
-  text "⊢" <+> text n $$
-    nest 2
-      (vcat [ text "⇓" <+> pretty 0 r
-            , text "╟" <+> pretty 0 u
-            , text "∈" <+> pretty 0 s
-            ]
-      )
-
+instance Pretty (Decl String) where
+  pretty (n, s, u) =  do
+    let Realizer r = extractRealizer u
+    n' <- pretty n
+    s' <- pretty s
+    u' <- pretty u
+    r' <- pretty r
+    pure $
+     text "⊢" <+> n' $$
+       nest 2
+         (vcat [ text "⇓" <+> r'
+               , text "╟" <+> u'
+               , text "∈" <+> s'
+               ]
+         )
