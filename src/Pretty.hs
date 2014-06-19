@@ -22,9 +22,6 @@ runFresh = flip runFreshWith (-1)
 scope :: Fresh a -> Fresh a
 scope = local succ
 
-unscope :: Fresh a -> Fresh a
-unscope = local pred
-
 var :: Fresh String
 var = asks $ map (C.chr . (+ 97)) . digits
   where
