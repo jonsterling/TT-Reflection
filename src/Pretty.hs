@@ -1,17 +1,20 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Pretty (Pretty(..), Fresh, runFresh) where
+module Pretty ( Pretty(..)
+              , Fresh
+              , runFresh
+              ) where
 
-import qualified Bound            as B
+import qualified Bound                as B
 import           Syntax
 import           Text.PrettyPrint
-import           Typing           hiding (Type, Tm)
+import           Typing               hiding (Tm, Type)
 
-import Control.Monad.Reader
-import Control.Applicative
-import qualified Data.Char as C
-import qualified Data.Digits as D
+import           Control.Applicative
+import           Control.Monad.Reader
+import qualified Data.Char            as C
+import qualified Data.Digits          as D
 
 newtype Fresh a = Fresh { runFreshWith :: Int -> a }
   deriving (Applicative, Functor, Monad, MonadReader Int)
