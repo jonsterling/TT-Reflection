@@ -1,0 +1,95 @@
+\documentclass{amsart}
+
+\usepackage{proof}
+
+\title{A Type Theory with Scoped Equality Reflection}
+\author{Jonathan Sterling}
+
+
+\begin{document}
+\maketitle
+
+\def\emp{\diamond}
+\def\sig{\mbox{ sig}}
+\def\ctx{\mbox{ ctx}}
+\def\hints{\mbox{ hints}}
+\def\fresh{\mathrel{\#}}
+
+\noindent
+We have the following judgments:
+
+\bigskip
+\begin{tabular}{ll}
+$\vdash\Sigma\sig$                            & $\Sigma$ is a valid signature\\
+$\vdash_\Sigma^\mathcal{H}\Gamma\ctx$         & $\Gamma$ is a valid context\\
+$\Gamma\vdash_\Sigma\mathcal{H}\hints$        & $\mathcal{H}$ is a valid hints set\\
+$\Gamma\vdash_\Sigma^\mathcal{H} M:A$         & $M$ has type $A$\\
+$\Gamma\vdash_\Sigma^\mathcal{H} M\equiv N:A$ & $M$ equals $N$ at type $A$
+\end{tabular}
+\bigskip
+
+\noindent
+The judgments for the theory are given inductive-recursively below.
+
+\begin{equation}
+  \infer{\vdash\emp\sig}{}
+  \qquad
+  \infer{
+    \vdash\Sigma,c:A\sig
+  }{
+    \vdash\Sigma\sig &
+    \emp\vdash_\Sigma^\emp A:\mathbb{U} &
+    \Sigma\fresh c
+  }
+  \tag{Signatures}
+\end{equation}
+
+\begin{equation}
+  \infer{\vdash_\Sigma^\mathcal{H}\emp\ctx}{}
+  \qquad
+  \infer{
+    \vdash_\Sigma^\mathcal{H}\Gamma,x:A\ctx
+  }{
+    \vdash_\Sigma^\mathcal{H}\Gamma\ctx &
+    \Gamma\vdash_\Sigma^\mathcal{H} A:\mathbb{U} &
+    \Gamma\fresh x
+  }
+  \tag{Contexts}
+\end{equation}
+
+\begin{equation}
+  \infer{\Gamma\vdash \emp\hints}{}
+  \qquad
+  \infer{
+    \Gamma\vdash_\Sigma \mathcal{H}, a\equiv b:A\rangle\hints
+  }{
+    \Gamma\vdash_\Sigma \mathcal{H}\hints &
+    \Gamma\vdash_\Sigma^\mathcal{H} A: \mathbb{U} &
+    \Gamma\vdash_\Sigma^\mathcal{H} a,b : A
+  }
+  \tag{Hints}
+\end{equation}
+
+\begin{equation}
+  \infer{
+    \Gamma\vdash_\Sigma^\mathcal{H} x:A
+  }{
+    x:A\in\Gamma
+  }
+  \qquad
+  \infer{
+    \Gamma\vdash_\Sigma^\mathcal{H} c:A
+  }{
+    c:A\in\Sigma
+  }
+  \qquad
+  \infer{
+    \Gamma\vdash_\Sigma^\mathcal{H} a\equiv b:A
+  }{
+    a\equiv b:A \in \mathcal{H}
+  }
+  \qquad
+  \tag{Projection}
+\end{equation}
+
+\end{document}
