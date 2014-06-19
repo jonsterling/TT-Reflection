@@ -21,10 +21,10 @@ starting point. We have the following judgments:
 \bigskip
 \begin{tabular}{ll}
 $\vdash\Sigma\sig$                            & $\Sigma$ is a valid signature\\
-$\vdash_\Sigma^\mathcal{H}\Gamma\ctx$         & $\Gamma$ is a valid context\\
+$\mathcal{H}\vdash_\Sigma\Gamma\ctx$          & $\Gamma$ is a valid context\\
 $\Gamma\vdash_\Sigma\mathcal{H}\hints$        & $\mathcal{H}$ is a valid hints set\\
-$\Gamma\vdash_\Sigma^\mathcal{H} M:A$         & $M$ has type $A$\\
-$\Gamma\vdash_\Sigma^\mathcal{H} M\equiv N:A$ & $M$ equals $N$ at type $A$
+$\Gamma;\mathcal{H}\vdash_\Sigma M:A$         & $M$ has type $A$\\
+$\Gamma;\mathcal{H}\vdash_\Sigma M\equiv N:A$ & $M$ equals $N$ at type $A$
 \end{tabular}
 \bigskip
 
@@ -45,13 +45,13 @@ The rules for the theory are given inductive-recursively below.
 \end{equation}
 
 \begin{equation}
-  \infer{\vdash_\Sigma^\mathcal{H}\emp\ctx}{}
+  \infer{\mathcal{H}\vdash_\Sigma\emp\ctx}{}
   \qquad
   \infer{
-    \vdash_\Sigma^\mathcal{H}\Gamma,x:A\ctx
+    \mathcal{H}\vdash_\Sigma\Gamma,x:A\ctx
   }{
-    \vdash_\Sigma^\mathcal{H}\Gamma\ctx &
-    \Gamma\vdash_\Sigma^\mathcal{H} A:\mathbb{U} &
+    \mathcal{H}\vdash_\Sigma\Gamma\ctx &
+    \Gamma;\mathcal{H}\vdash_\Sigma A:\mathbb{U} &
     \Gamma\fresh x
   }
   \tag{Contexts}
@@ -64,27 +64,27 @@ The rules for the theory are given inductive-recursively below.
     \Gamma\vdash_\Sigma \mathcal{H}, a\equiv b:A\hints
   }{
     \Gamma\vdash_\Sigma \mathcal{H}\hints &
-    \Gamma\vdash_\Sigma^\mathcal{H} A: \mathbb{U} &
-    \Gamma\vdash_\Sigma^\mathcal{H} a,b : A
+    \Gamma;\mathcal{H}\vdash_\Sigma A: \mathbb{U} &
+    \Gamma;\mathcal{H}\vdash_\Sigma a,b : A
   }
   \tag{Hints}
 \end{equation}
 
 \begin{equation}
   \infer{
-    \Gamma\vdash_\Sigma^\mathcal{H} x:A
+    \Gamma;\mathcal{H}\vdash_\Sigma x:A
   }{
     x:A\in\Gamma
   }
   \qquad
   \infer{
-    \Gamma\vdash_\Sigma^\mathcal{H} c:A
+    \Gamma;\mathcal{H}\vdash_\Sigma c:A
   }{
     c:A\in\Sigma
   }
   \qquad
   \infer{
-    \Gamma\vdash_\Sigma^\mathcal{H} a\equiv b:A
+    \Gamma;\mathcal{H}\vdash_\Sigma a\equiv b:A
   }{
     a\equiv b:A \in \mathcal{H}
   }
@@ -94,10 +94,10 @@ The rules for the theory are given inductive-recursively below.
 
 \begin{equation}
   \infer{
-    \Gamma\vdash_\Sigma^\mathcal{H} \mathsf{reflect}\ p\ \mathsf{in}\ e : C
+    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{reflect}\ p\ \mathsf{in}\ e : C
   }{
-    \Gamma\vdash_\Sigma^\mathcal{H} p : \mathsf{Id}_A\,a\;b &
-    \Gamma\vdash_\Sigma^{\mathcal{H},a\equiv b:A} e : C
+    \Gamma;\mathcal{H}\vdash_\Sigma p : \mathsf{Id}_A\,a\;b &
+    \Gamma;(\mathcal{H}, a\equiv b:A)\vdash_\Sigma e : C
   }
   \tag{Reflect}
 \end{equation}
