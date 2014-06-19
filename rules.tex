@@ -15,8 +15,8 @@
 \def\hints{\mbox{ hints}}
 \def\fresh{\mathrel{\#}}
 
-\noindent
-We have the following judgments:
+Feel free to change the stuff below as our thinking evolves. This is just a
+starting point. We have the following judgments:
 
 \bigskip
 \begin{tabular}{ll}
@@ -29,7 +29,7 @@ $\Gamma\vdash_\Sigma^\mathcal{H} M\equiv N:A$ & $M$ equals $N$ at type $A$
 \bigskip
 
 \noindent
-The judgments for the theory are given inductive-recursively below.
+The rules for the theory are given inductive-recursively below.
 
 \begin{equation}
   \infer{\vdash\emp\sig}{}
@@ -90,6 +90,16 @@ The judgments for the theory are given inductive-recursively below.
   }
   \qquad
   \tag{Projection}
+\end{equation}
+
+\begin{equation}
+  \infer{
+    \Gamma\vdash_\Sigma^\mathcal{H} \mathsf{reflect}\ p\ \mathsf{in}\ e : C
+  }{
+    \Gamma\vdash_\Sigma^\mathcal{H} p : \mathsf{Id}_A\,a\;b &
+    \Gamma\vdash_\Sigma^{\mathcal{H},a\equiv b:A} e : C
+  }
+  \tag{Reflect}
 \end{equation}
 
 \end{document}
