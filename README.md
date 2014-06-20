@@ -19,5 +19,6 @@ $ cabal build
 ## Running
 
 ```
-$ cabal run test.tt
+$ cabal run -- check test.tt    # check a theory file
+$ cabal run -- repl             # start the REPL
 ```
