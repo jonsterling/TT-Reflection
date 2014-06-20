@@ -15,7 +15,6 @@ import qualified Context as Ctx
 
 import           Control.Applicative
 import           Control.Monad
-import qualified Control.Monad.Error      as CM
 import qualified Control.Monad.Reader     as CM
 import qualified Control.Lens             as CL
 import           Control.Lens.Operators
