@@ -108,13 +108,13 @@ visibleHelper = OA.abortOption OA.ShowHelpText . DM.mconcat $
         ]
 
 parseCheckArgs :: OA.Parser (DV.PlainRec CheckArgsElm CheckArgsExt)
-parseCheckArgs = fmap DV.cast . DV.rdist $
+parseCheckArgs = DV.rdist $
       SCAPaths <-: (many . OA.argument Just . DM.mconcat)
         [ OA.metavar "FILE"
         ]
 
 parseREPLArgs :: OA.Parser (DV.PlainRec REPLArgsElm REPLArgsExt)
-parseREPLArgs = fmap DV.cast . DV.rdist $
+parseREPLArgs = DV.rdist $
       SRAUnit =: ()
 
 parseOptions :: OA.Parser (DV.PlainRec OptionsElm OptionsExt)
