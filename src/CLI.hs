@@ -189,7 +189,7 @@ dispatchREPL
     loop = do
       gamma <- CM.ask
       let barWidth = 80
-      let dname = '_' ++ show (Map.size . Ctx.signature $ gamma)
+      let dname = '_' : show (Map.size . Ctx.signature $ gamma)
       let next f = do CM.lift . SCH.outputStrLn $ replicate barWidth '=' ++ "\n"
                       CM.local f loop
       let parse = TT.parseString parseTm DM.mempty
