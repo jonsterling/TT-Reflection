@@ -81,12 +81,10 @@ parseReflection = Reflect
               <*> (reserved "in" *> parseTm)
 
 parseIdentityType :: (Monad m, TokenParsing m) => m (Tm String)
-parseIdentityType = do
-  reserved "Id"
-  s <- parseTm
-  a <- parseTm
-  b <- parseTm
-  return $ Id a b s
+parseIdentityType = Id
+                <$> (reserved "Id" *> parseTm)
+                <*> parseTm
+                <*> parseTm
 
 parseApp :: (Monad m, TokenParsing m) => m (Tm String)
 parseApp = (:@) <$> parseTm <*> parseTm

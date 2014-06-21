@@ -74,7 +74,7 @@ instance Pretty (Tm String) where
     a' <- pretty a
     b' <- pretty b
     pure $ text "reflect" <+> a' <+> text "in" <+> b'
-  pretty (Id a b s) = do
+  pretty (Id s a b) = do
     s' <- pretty s
     a' <- pretty a
     b' <- pretty b

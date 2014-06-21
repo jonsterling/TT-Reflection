@@ -103,7 +103,7 @@ infer' (B _ sg tau) = do
   _ <- check sg $ C U
   _ <- extendCtx "x" sg $ check (tau // V "x") $ C U
   return $ C U
-infer' (Id a b s) = do
+infer' (Id s a b) = do
   (s', _) <- check s $ C U
   _ <- check a s'
   _ <- check b s'
@@ -117,15 +117,15 @@ check' (V x) ty = do
   return (V x, ty)
 check' (Reflect p e) rho = do
   t <- infer p
-  (a,b,s) <- ensureIdentity t
+  (s, a, b) <- ensureIdentity t
   (e', _) <- addEquation (a,b) $ check e rho
   return (Reflect p e', rho)
-check' (C Refl) (Id a b s) = do
+check' (C Refl) (Id s a b) = do
   (s', _) <- check s $ C U
   (a', _) <- check a s'
   (b', _) <- check b s'
   equate a' b'
-  return (C Refl, Id a' b' s')
+  return (C Refl, Id s' a' b')
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
@@ -147,7 +147,7 @@ extractRealizer = Realizer . extract
     extract (Ann a t) = extract a
     extract (Pair a b) = Pair (extract a) (extract b)
     extract (B b s t) = B b (extract s) $ "x" \\ extract (t // V "x")
-    extract (Id a b s) = Id (extract a) (extract b) (extract s)
+    extract (Id s a b) = Id (extract s) (extract a) (extract b)
     extract (Reflect p e) = extract e
     extract (Split e p) = Split (abstract2 ("x","y") (extract (instantiate2 (V "x", V "y") e))) (extract p)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
@@ -155,11 +155,11 @@ extractRealizer = Realizer . extract
     extract (f :@ a) = extract f :@ extract a
     extract e = e
 
-ensureIdentity :: Ty -> Checking (Tm, Tm, Ty)
+ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
 ensureIdentity ty = do
   ty' <- whnf ty
   case ty' of
-    Id a b s -> return (a, b, s)
+    Id s a b -> return (s, a, b)
     _ -> err "Expected identity type"
 
 equate :: Tm -> Tm -> Checking ()

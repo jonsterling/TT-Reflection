@@ -64,7 +64,7 @@ instance Monad Tm where
   Ann u t >>= f = Ann (u >>= f) (t >>= f)
   Pair a b >>= f = Pair (a >>= f) (b >>= f)
   B bnd s t >>= f = B bnd (s >>= f) (t B.>>>= f)
-  Id a b s >>= f = Id (a >>= f) (b >>= f) (s >>= f)
+  Id s a b >>= f = Id (s >>= f) (a >>= f) (b >>= f)
   Reflect p e >>= f = Reflect (p >>= f) (e >>= f)
   Let (s, sty) e >>= f = Let (s >>= f, sty >>= f) (e B.>>>= f)
   Lam e >>= f = Lam (e B.>>>= f)
