@@ -15,20 +15,21 @@ import qualified Context as Ctx
 
 import           Control.Applicative
 import           Control.Monad
-import qualified Control.Monad.Reader     as CM
-import qualified Control.Lens             as CL
+import qualified Control.Monad.Reader         as CM
+import qualified Control.Lens                 as CL
 import           Control.Lens.Operators
-import qualified Data.Vinyl               as DV
-import qualified Data.Vinyl.TH            as DV
-import qualified Data.Map                 as Map
-import qualified Data.Monoid              as DM
-import qualified Numeric.Natural          as NN
-import qualified Options.Applicative      as OA
-import qualified Data.Singletons.TH       as DS
-import qualified System.Console.Haskeline as SCH
-import qualified System.IO                as SI
-import qualified Text.PrettyPrint         as TPP
-import qualified Text.Trifecta            as TT
+import qualified Data.Vinyl                   as DV
+import qualified Data.Vinyl.TH                as DV
+import qualified Data.Map                     as Map
+import qualified Data.Monoid                  as DM
+import qualified Numeric.Natural              as NN
+import qualified Options.Applicative          as OA
+import qualified Data.Singletons.TH           as DS
+import qualified System.Console.Haskeline     as SCH
+import qualified System.IO                    as SI
+import qualified Text.PrettyPrint             as TPP
+import qualified Text.PrettyPrint.ANSI.Leijen as TPPAL
+import qualified Text.Trifecta                as TT
 
 import           Data.Vinyl
   ( (<-:)
@@ -133,11 +134,11 @@ parseOptions = DV.rdist $
 parseCommand :: OA.Parser Command
 parseCommand = OA.hsubparser . DM.mconcat $
         [ OA.command "check"
-           . OA.info (pure CCheck <*> parseCheckArgs)
+           . OA.info (CCheck <$> parseCheckArgs)
            . OA.progDesc
            $ "check theory files"
         , OA.command "repl"
-           . OA.info (pure  CREPL <*>  parseREPLArgs)
+           . OA.info (CREPL <$>  parseREPLArgs)
            . OA.progDesc
            $ "start the READ-EVAL-PRINT loop"
         ]
@@ -174,7 +175,7 @@ dispatchCheck
       case CM.runReaderT (runChecking (checkDecls res)) DM.mempty of
         Right artifacts ->
           putStrLn . TPP.renderStyle TPP.style . TPP.vcat $
-            pure (runFresh . pretty) <*> artifacts
+            runFresh . pretty <$> artifacts
         Left err -> print err
       putStrLn ""
 
@@ -187,19 +188,19 @@ dispatchREPL
     loop :: CM.ReaderT Context (SCH.InputT IO) ()
     loop = do
       gamma <- CM.ask
-      let dname = "_" ++ show (Map.size . Ctx.signature $ gamma)
-      let next f = do CM.lift $ SCH.outputStrLn "==========================\n"
+      let barWidth = 80
+      let dname = '_' ++ show (Map.size . Ctx.signature $ gamma)
+      let next f = do CM.lift . SCH.outputStrLn $ replicate barWidth '=' ++ "\n"
                       CM.local f loop
       let parse = TT.parseString parseTm DM.mempty
       Just (parse -> rtm) <- CM.lift $ SCH.getInputLine "⊢ "
       Just (parse -> rty) <- CM.lift $ SCH.getInputLine "∈ "
 
-      CM.lift $ SCH.outputStrLn "--------------------------"
+      CM.lift . SCH.outputStrLn $ replicate barWidth '-'
 
       case (rtm, rty) of
         (TT.Success tm, TT.Success ty) -> do
-          let chk = check tm ty
-          case CM.runReaderT (runChecking chk) gamma of
+          case CM.runReaderT (runChecking (check tm ty)) gamma of
             Right tder@(u, s) -> do
               let Realizer realizer = extractRealizer u
               let decl = (dname, s, u)
@@ -211,8 +212,9 @@ dispatchREPL
             Left err -> do
               CM.lift $ SCH.outputStrLn err
               next id
-        _ -> do
-          CM.lift $ SCH.outputStrLn "Parse error"
+        results -> do
+          let errors = TPPAL.vsep $ results ^.. CL.both . TT._Failure
+          CM.lift . SCH.outputStrLn . flip TPPAL.displayS "" $ TPPAL.renderPretty 0.4 200 errors
           next id
 
 dispatchCommand :: Command -> IO ()
