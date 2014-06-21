@@ -14,6 +14,9 @@
 \def\ctx{\mbox{ ctx}}
 \def\hints{\mbox{ hints}}
 \def\fresh{\mathrel{\#}}
+\def\infers{\Rightarrow}
+\def\checks{\Leftarrow}
+\def\uni{\mathbb{U}}
 
 Feel free to change the stuff below as our thinking evolves. This is just a
 starting point. We have the following judgments:
@@ -23,7 +26,8 @@ starting point. We have the following judgments:
 $\vdash\Sigma\sig$                            & $\Sigma$ is a valid signature\\
 $\mathcal{H}\vdash_\Sigma\Gamma\ctx$          & $\Gamma$ is a valid context\\
 $\Gamma\vdash_\Sigma\mathcal{H}\hints$        & $\mathcal{H}$ is a valid hints set\\
-$\Gamma;\mathcal{H}\vdash_\Sigma M:A$         & $M$ has type $A$\\
+$\Gamma;\mathcal{H}\vdash_\Sigma M\infers A$ & $M$ infers type $A$\\
+$\Gamma;\mathcal{H}\vdash_\Sigma M\checks A$  & $M$ checks type $A$\\
 $\Gamma;\mathcal{H}\vdash_\Sigma M\equiv N:A$ & $M$ equals $N$ at type $A$
 \end{tabular}
 \bigskip
@@ -37,8 +41,10 @@ The rules for the theory are given inductive-recursively below.
   \infer{
     \vdash\Sigma,c:A\sig
   }{
-    \vdash\Sigma\sig &
-    \emp\vdash_\Sigma^\emp A:\mathbb{U} &
+    \begin{array}{l}
+      \vdash\Sigma\sig\\
+      \emp\vdash_\Sigma^\emp A\checks\uni
+    \end{array} &
     \Sigma\fresh c
   }
   \tag{Signatures}
@@ -50,8 +56,10 @@ The rules for the theory are given inductive-recursively below.
   \infer{
     \mathcal{H}\vdash_\Sigma\Gamma,x:A\ctx
   }{
-    \mathcal{H}\vdash_\Sigma\Gamma\ctx &
-    \Gamma;\mathcal{H}\vdash_\Sigma A:\mathbb{U} &
+    \begin{array}{l}
+      \mathcal{H}\vdash_\Sigma\Gamma\ctx\\
+      \Gamma;\mathcal{H}\vdash_\Sigma A\checks\uni\\
+    \end{array} &
     \Gamma\fresh x
   }
   \tag{Contexts}
@@ -63,22 +71,24 @@ The rules for the theory are given inductive-recursively below.
   \infer{
     \Gamma\vdash_\Sigma \mathcal{H}, a\equiv b:A\hints
   }{
-    \Gamma\vdash_\Sigma \mathcal{H}\hints &
-    \Gamma;\mathcal{H}\vdash_\Sigma A: \mathbb{U} &
-    \Gamma;\mathcal{H}\vdash_\Sigma a,b : A
+    \begin{array}{l}
+      \Gamma\vdash_\Sigma \mathcal{H}\hints\\
+      \Gamma;\mathcal{H}\vdash_\Sigma A\checks\uni\\
+      \Gamma;\mathcal{H}\vdash_\Sigma a,b\checks A
+    \end{array}
   }
   \tag{Hints}
 \end{equation}
 
 \begin{equation}
   \infer{
-    \Gamma;\mathcal{H}\vdash_\Sigma x:A
+    \Gamma;\mathcal{H}\vdash_\Sigma x\infers A
   }{
     x:A\in\Gamma
   }
   \qquad
   \infer{
-    \Gamma;\mathcal{H}\vdash_\Sigma c:A
+    \Gamma;\mathcal{H}\vdash_\Sigma c\infers A
   }{
     c:A\in\Sigma
   }
@@ -94,12 +104,70 @@ The rules for the theory are given inductive-recursively below.
 
 \begin{equation}
   \infer{
-    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{reflect}\ p\ \mathsf{in}\ e : C
+    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{reflect}\ p\ \mathsf{in}\ e \checks C
   }{
-    \Gamma;\mathcal{H}\vdash_\Sigma p : \mathsf{Id}_A\,a\;b &
-    \Gamma;(\mathcal{H}, a\equiv b:A)\vdash_\Sigma e : C
+    \begin{array}{l}
+      \Gamma;\mathcal{H}\vdash_\Sigma p \infers \mathsf{Id}_A\,a\;b\\
+      \Gamma;\mathcal{H}\vdash_\Sigma C\checks\uni\\
+      \Gamma;(\mathcal{H}, a\equiv b:A)\vdash_\Sigma e \checks C
+    \end{array}
   }
   \tag{Reflect}
+\end{equation}
+
+\begin{equation}
+  \infer{
+    \Gamma;\mathcal{H}\vdash_\Sigma\mathrm{Q}_A[x]B\infers\uni
+  }{
+    \begin{array}{l}
+      \Gamma;\mathcal{H}\vdash_\Sigma A \checks\uni\\
+      \Gamma,x:A;\mathcal{H}\vdash_\Sigma [x]B\checks\uni
+    \end{array} &
+    \mathrm{Q} \in \{ \Sigma, \Pi \}
+  }
+  \tag{Binders}
+\end{equation}
+
+\begin{equation}
+  \infer{
+    \Gamma;\mathcal{H}\vdash_\Sigma \langle a,b\rangle \checks \Sigma_A[x]B
+  }{
+    \begin{array}{l}
+      \Gamma;\mathcal{H}\vdash_\Sigma a\checks A\\
+      \Gamma;\mathcal{H}\vdash_\Sigma b\checks [a/x]B
+    \end{array}
+  }
+  \qquad
+  \infer{
+    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{split}([u]C; [v,w]M; p)\infers [p/u]C
+  }{
+    \begin{array}{l}
+      \Gamma;\mathcal{H}\vdash_\Sigma p\infers \Sigma_A[x]B\\
+      \Gamma,u:\Sigma_A[x]B;\mathcal{H}\vdash_\Sigma [u]C\checks\uni\\
+      \Gamma,v:A,w:[v/x]B;\mathcal{H}\vdash_\Sigma [v,w]M\checks[\langle v,w\rangle/u]C
+    \end{array}
+  }
+  \tag{Sigma}
+\end{equation}
+
+%% Should we give Martin-Löf's original induction principle for dependent products, and derive _@_ thence? It would be more symmetrical, though I do not know the degree to which this is a thing people do anymore.
+
+\begin{equation}
+  \infer{
+    \Gamma;\mathcal{H}\vdash_\Sigma\lambda [x]M\checks\Pi_A[x]B
+  }{
+    \Gamma,x:A;\mathcal{H}\vdash_\Sigma [x]M\checks[x]B
+  }
+  \qquad
+  \infer{
+    \Gamma;\mathcal{H}\vdash_\Sigma f\mathop{@}c \infers [c/x]B
+  }{
+    \begin{array}{l}
+      \Gamma;\mathcal{H}\vdash_\Sigma f\infers\Pi_A[x]B\\
+      \Gamma;\mathcal{H}\vdash_\Sigma c\checks A
+    \end{array}
+  }
+  \tag{Pi}
 \end{equation}
 
 \end{document}
