@@ -1,0 +1,108 @@
+tm : type.
+
+quantifier : type.
+pi : quantifier.
+sigma : quantifier.
+
+univ : tm.
+
+unit : tm.
+tt : tm.
+
+bool : tm.
+true : tm.
+false : tm.
+bool-elim : (tm -> tm) -> tm -> tm -> tm -> tm.
+
+quant : quantifier -> tm -> (tm -> tm) -> tm.
+lam : (tm -> tm) -> tm.
+app : tm -> tm -> tm.
+
+pair : tm -> tm -> tm.
+split : (tm -> tm) -> (tm -> tm -> tm) -> tm -> tm.
+
+inf : tm -> tm -> type.
+chk : tm -> tm -> type.
+eval : tm -> tm -> type.
+can : tm -> type.
+
+%abbrev ⇒ = inf.
+%abbrev ⇐ = chk.
+%abbrev ⇓ = eval.
+%abbrev λ = lam.
+%abbrev @ = app.
+
+%abbrev Π = quant pi.
+%abbrev Σ = quant sigma.
+
+%infix left 0 ⇒.
+%infix left 0 ⇐.
+%infix left 0 ⇓.
+%infix left 0 @.
+
+inf/univ : univ ⇒ univ.
+inf/tt : tt ⇒ unit.
+inf/true : true ⇒ bool.
+inf/false : false ⇒ bool.
+
+inf/quant : quant Q A B ⇒ U
+             <- A ⇐ univ
+             <- ({x} x ⇐ A -> (B x) ⇐ univ).
+
+inf/bool-elim : bool-elim C M N X ⇒ C X
+                 <- X ⇒ bool
+                 <- ({x} x ⇐ bool -> C x ⇐ univ)
+                 <- N ⇐ C false
+                 <- M ⇐ C true.
+
+chk/lam : λ M ⇐ Π A B
+           <- ({x} x ⇐ A -> M x ⇐ B x).
+
+chk/app : M @ N ⇒ B N
+           <- M ⇒ Π A B
+           <- N ⇐ A.
+
+chk/pair : pair M N ⇐ Σ A B
+            <- N ⇐ B M
+            <- M ⇐ A.
+
+chk/split : split C M P ⇒ C P
+             <- P ⇒ Σ A B
+             <- ({u} u ⇐ Σ A B -> C u ⇐ univ)
+             <- ({v} {w} v ⇐ A -> w ⇐ B v -> M v w ⇐ C (pair v w)).
+
+chk/inf : M ⇐ A
+           <- M ⇒ A.
+
+can/univ : can univ.
+can/tt : can tt.
+can/true : can true.
+can/false : can false.
+can/quant : can (quant Q A B)
+             <- can A
+             <- {x} can (B x).
+can/lam : can (λ M)
+           <- {x} can (M x).
+can/pair : can (pair M N)
+            <- can M
+            <- can N.
+
+eval/can : M ⇓ M
+            <- can M.
+eval/bool-elim : (bool-elim C M N X) ⇓ (bool-elim C M N X′)
+                  <- X ⇓ X′.
+eval/bool-elim/true : (bool-elim _ M _ true) ⇓ M.
+eval/bool-elim/false : (bool-elim _ _ N false) ⇓ N.
+
+eval/pair : (pair M N) ⇓ (pair M′ N′)
+             <- N ⇓ N′
+             <- M ⇓ M′.
+eval/split : (split _ M P) ⇓ M X Y
+              <- P ⇓ pair X Y.
+
+eval/app : M @ N ⇓ O
+            <- M ⇓ λ E
+            <- E N ⇓ O.
+
+%solve ex₁ : (λ [A] λ [x] x) ⇐ (Π univ [A] Π A [x] A).
+

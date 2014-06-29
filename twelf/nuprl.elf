@@ -1,0 +1,133 @@
+%use inequality/integers.
+
+tm : type.
+uni : integer -> tm.
+eq : tm -> tm -> tm -> tm.
+∈ : tm -> tm -> tm = [M] [T] eq M M T.
+Π : tm -> (tm -> tm) -> tm.
+->> : tm -> tm -> tm = [S] [T] Π S ([x] T).
+λ : (tm -> tm) -> tm.
+@ : tm -> tm -> tm.
+axiom : tm.
++ : tm -> tm -> tm.
+inl : tm -> tm.
+inr : tm -> tm.
+decide : tm -> (tm -> tm) -> (tm -> tm) -> tm.
+
+%infix left 9 ∈.
+%infix left 9 ->>.
+%infix left 9 @.
+%infix left 9 +.
+
+Σ : tm -> (tm -> tm) -> tm.
+pair : tm -> tm.
+π₁ : tm -> tm.
+π₂ : tm -> tm.
+
+void : tm.
+abort : tm -> tm.
+
+unit : tm.
+• : tm.
+
+set : tm -> (tm -> tm) -> tm.
+
+⊢ : tm -> type.
+%prefix 1 ⊢.
+
+uni-form : ⊢ uni I ∈ uni J
+            <- J - 1 >= I.
+uni-culm : ⊢ T ∈ uni J
+            <- J - 1 >= I
+            <- ⊢ T ∈ uni  I.
+
+eq-form : ⊢ eq M N T ∈ uni K
+           <- ⊢ T ∈ uni K
+           <- ⊢ M ∈ T
+           <- ⊢ N ∈ T.
+
+eq-sym : ⊢ eq N M T
+          <- ⊢ eq M N T.
+
+eq-trans : ⊢ eq M O T
+            <- ⊢ eq N O T
+            <- ⊢ eq M N T.
+
+subst : ⊢ eq M M′ (P N)
+         <- ⊢ eq M M′ (P N′)
+         <- ⊢ eq N N′ T
+         <- ({x} ⊢ x ∈ T -> ⊢ P x ∈ uni K).
+
+ax-intro : ⊢ axiom ∈ (M ∈ T)
+            <- ⊢ M ∈ T.
+ax-elim : ⊢ T
+           <- ⊢ M ∈ T.
+
+fun-form : ⊢ Π S T ∈ uni K
+            <- ({x} ⊢ x ∈ S -> ⊢ T x ∈ uni K)
+            <- ⊢ S ∈ uni K.
+fun-intro : ⊢ λ M ∈ Π S T
+             <- ({x} ⊢ x ∈ S -> ⊢ M x ∈ T x)
+             <- ⊢ S ∈ uni K.
+fun-elim : ⊢ M @ N ∈ T N
+            <- ⊢ N ∈ S
+            <- ⊢ M ∈ Π S T.
+fun-xi : ⊢ eq (λ M) (λ N) (Π S T)
+          <- ⊢ S ∈ uni K
+          <- {x} ⊢ x ∈ S -> ⊢ eq (M x) (N x) (T x).
+fun-beta : ⊢ eq ((λ M) @ N) (M N) (T N)
+            <- ⊢ N ∈ S
+            <- {x} ⊢ x ∈ S -> ⊢ M x ∈ T x.
+fun-ext : ⊢ eq M N (Π S T)
+           <- ⊢ M ∈ Π S T
+           <- ⊢ N ∈ Π S T
+           <- {x} ⊢ x ∈ S -> ⊢ eq (M @ x) (N @ x) (T x).
+
+unit-form : ⊢ unit ∈ uni 1.
+unit-intro : ⊢ • ∈ unit.
+unit-eq : ⊢ eq M N unit
+           <- ⊢ M ∈ unit
+           <- ⊢ N ∈ unit.
+
+void-form : ⊢ void ∈ uni 1.
+void-elim : ⊢ abort N ∈ T
+             <- ⊢ N ∈ void
+             <- ⊢ T ∈ uni K.
+
+plus-form : ⊢ S + T ∈ uni K
+             <- ⊢ S ∈ uni K
+             <- ⊢ T ∈ uni K.
+plus-intro/inl : ⊢ inl X ∈ (S + T)
+                  <- ⊢ X ∈ S
+                  <- ⊢ (S + T) ∈ uni K.
+plus-intro/inr : ⊢ inr X ∈ (S + T)
+                  <- ⊢ X ∈ T
+                  <- ⊢ (S + T) ∈ uni K.
+plus-elim : ⊢ decide X M N ∈ C
+             <- ⊢ C ∈ uni K
+             <- ({x} ⊢ x ∈ S -> ⊢ M x ∈ C)
+             <- ({x} ⊢ x ∈ T -> ⊢ N x ∈ C)
+             <- ⊢ X ∈ (S + T).
+
+plus-elim/inl : ⊢ eq (decide X M _) (M Y) C
+                 <- ⊢ M Y ∈ C
+                 <- ⊢ eq X (inl Y) (S + T).
+
+plus-elim/inr : ⊢ eq (decide X _ N) (N Y) C
+                 <- ⊢ N Y ∈ C
+                 <- ⊢ eq X (inr Y) (S + T).
+
+%abbrev bool = unit + unit.
+%abbrev tt = inl •.
+%abbrev ff = inr •.
+%abbrev if = [M] [N] [O] decide M ([z] N) ([z] O).
+
+example : ⊢ tt ∈ bool = plus-intro/inl (plus-form unit-form unit-form) unit-intro.
+%theorem
+ex : exists {D : ⊢ tt ∈ bool} true.
+%prove 3 {} (ex _).
+     
+
+bool-id = λ [x] if x tt ff.
+bool-not = λ [x] if x ff tt.
+bool-notnot = λ [x] bool-not @ (bool-not @ x).
