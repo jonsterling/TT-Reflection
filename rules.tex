@@ -108,7 +108,7 @@ The rules for the theory are given inductive-recursively below.
   }{
     \begin{array}{l}
       \Gamma;\mathcal{H}\vdash_\Sigma p \infers \mathsf{Id}_A\,a\;b\\
-      \Gamma;\mathcal{H}\vdash_\Sigma C\checks\uni\\
+      \Gamma;(\mathcal{H}, a\equiv b:A)\vdash_\Sigma C\checks\uni\\
       \Gamma;(\mathcal{H}, a\equiv b:A)\vdash_\Sigma e \checks C
     \end{array}
   }

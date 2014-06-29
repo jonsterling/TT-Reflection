@@ -115,7 +115,8 @@ check' (V x) ty = do
 check' (Reflect p e) rho = do
   t <- infer p
   (s, a, b) <- ensureIdentity t
-  (e', _) <- addEquation (a,b) $ check e rho
+  (rho', _) <- addEquation (a,b) $ check rho $ C U
+  (e', _)   <- addEquation (a,b) $ check e rho
   return (Reflect p e', rho)
 check' (C Refl) (Id s a b) = do
   (s', _) <- check s $ C U
