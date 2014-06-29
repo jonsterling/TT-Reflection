@@ -30,6 +30,9 @@ identifier = ident emptyOps
 reserved :: (Monad m, TokenParsing m) => String -> m ()
 reserved = reserve emptyOps
 
+semicolon :: CharParsing m => m Char
+semicolon = char ';'
+
 parseConstant :: (Monad m, TokenParsing m) => m Constant
 parseConstant = Zero <$ (reserved "`0" <|> reserved "𝟘")
             <|> One  <$ (reserved "`1" <|> reserved "𝟙")
@@ -86,6 +89,13 @@ parseIdentityType = Id
                 <*> parseTm
                 <*> parseTm
 
+parseBinderEq :: (Monad m, TokenParsing m) => m (Tm String)
+parseBinderEq = do
+  reserved "binderEq"
+  parens $ BinderEq
+    <$> parseTm <* whiteSpace
+    <*> (semicolon *> whiteSpace *> parseBoundExpr)
+
 parseApp :: (Monad m, TokenParsing m) => m (Tm String)
 parseApp = (:@) <$> parseTm <*> parseTm
 
@@ -97,6 +107,7 @@ parseTm = optionalParens parseTm'
            <|> (parseBinderExpr <?> "binder expr")
            <|> (parseReflection <?> "reflection scope")
            <|> (parseIdentityType <?> "identity type")
+           <|> (parseBinderEq <?> "binder equality expr")
            <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")

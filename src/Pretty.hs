@@ -79,6 +79,12 @@ instance Pretty (Tm String) where
     a' <- pretty a
     b' <- pretty b
     pure $ text "Id" <+> s' <+> a' <+> b'
+  pretty (BinderEq p q) = do
+    p' <- pretty p
+    scope $ do
+      x  <- var
+      q' <- pretty (q // V x)
+      pure $ text "binderEq" <> parens (p' <> semi <+> brackets (text x) <+> q')
   pretty (f :@ a) = (<+>) <$> pretty f <*> pretty a
   pretty e = error $ "Welp: " ++ show e
 

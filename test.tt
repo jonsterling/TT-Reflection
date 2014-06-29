@@ -7,3 +7,9 @@
 |- reflection-example in pi[p: (Id U `0 `1)] `0
 ~> lam[p] reflect p in <>
 
+|- reflTest in Id `1 <> <>
+~> refl
+
+|- binderEqTest in Id U (pi[x:`1]`1) (pi[x:`1]`1)
+~> binderEq(refl; [x] refl)
+

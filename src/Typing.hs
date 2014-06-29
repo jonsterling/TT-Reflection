@@ -19,6 +19,8 @@ import qualified Syntax               as Syn
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 
+import qualified Bound                as B
+
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Reader
@@ -124,6 +126,15 @@ check' (C Refl) (Id s a b) = do
   (b', _) <- check b s'
   equate a' b'
   return (C Refl, Id s' a' b')
+check' (BinderEq p q) ty = do
+  (uni, a, b) <- ensureIdentity ty
+  ensureUniverse uni
+  (binder, s, t) <- ensureBinder a
+  (binder', s', t') <- ensureBinder b
+  assert (binder == binder') "Binders do not match"
+  (p', _) <- check' p (Id (C U) s s')
+  (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
+  return (BinderEq p' ("x" \\ q'), Id uni a b)
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
@@ -160,6 +171,17 @@ ensureIdentity ty = do
     Id s a b -> return (s, a, b)
     _ -> err "Expected identity type"
 
+ensureUniverse :: Ty -> Checking ()
+ensureUniverse (C U) = return ()
+ensureUniverse _ = err "Expected universe type"
+
+ensureBinder :: Ty -> Checking (Binder, Ty, B.Scope () Syn.Tm Name)
+ensureBinder (B b s t) = return (b, s, t)
+ensureBinder _ = err "Expected binder type"
+
+assert :: Bool -> String -> Checking ()
+assert p = unless p . err
+
 equate :: Tm -> Tm -> Checking ()
 equate e1 e2 =
   unless (e1 == e2) $ do
@@ -192,5 +214,7 @@ whnf (V x) = do
     case Map.lookup x rho of
       Just (_, tm) -> tm
       Nothing -> V x
+whnf (BinderEq p q) =
+  BinderEq <$> whnf p <*> ((\\) "x" <$> whnf (q // V "x"))
 whnf e = return e
 
