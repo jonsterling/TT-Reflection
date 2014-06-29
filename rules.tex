@@ -195,11 +195,25 @@ The rules for the theory are given inductive-recursively below.
       \Gamma;\mathcal{H}\vdash_\Sigma \mathrm{Q}_A[x]B \checks\uni\\
       \Gamma;\mathcal{H}\vdash_\Sigma \mathrm{Q}_A'[x]B' \checks\uni\\
       \Gamma;\mathcal{H}\vdash_\Sigma M \checks \mathsf{Id}_\uni(A; A')\\
-      \Gamma,y:A;\mathcal{H},A\equiv A':\uni \vdash_\Sigma N\checks \mathsf{Id}_\uni([y/x]B; [y/x]B')
+      \Gamma,u:A;\mathcal{H},A\equiv A':\uni \vdash_\Sigma N\checks \mathsf{Id}_\uni([u/x]B; [u/x]B')
     \end{array}&
     \mathrm{Q}\in\{\Pi,\Sigma\}
   }
   \tag{BinderEq}
+\end{equation}
+
+% Do we need something more fancy for this?
+\begin{equation}
+  \infer{
+    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{funext}([u]M)\checks \mathsf{Id}_{\Pi_A[x]B}(f; g)
+  }{
+    \begin{array}{l}
+      \Gamma;\mathcal{H}\vdash_\Sigma f\checks \Pi_A[x]B\\
+      \Gamma;\mathcal{H}\vdash_\Sigma g\checks \Pi_A[x]B\\
+      \Gamma,u:A;\mathcal{H}\vdash_\Sigma M\checks \mathsf{Id}_{[u/x]B}(f\mathop{@}u;g\mathop{@}u)
+    \end{array}
+  }
+  \tag{Funext}
 \end{equation}
 
 \end{document}

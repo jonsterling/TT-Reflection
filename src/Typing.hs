@@ -107,6 +107,12 @@ infer' (Id s a b) = do
   _ <- check a s'
   _ <- check b s'
   return $ C U
+infer' (BoolElim c m n b) = do
+  (c', _) <- extendCtx "x" (C Two) $ check (c // V "x") $ C U
+  _ <- check m (c // C Tt)
+  _ <- check n (c // C Ff)
+  (b', _) <- check b (C Two)
+  return $ ("x" \\ c') // b'
 infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Ty -> Checking (Tm, Ty)
@@ -132,9 +138,16 @@ check' (BinderEq p q) ty = do
   (binder, s, t) <- ensureBinder a
   (binder', s', t') <- ensureBinder b
   assert (binder == binder') "Binders do not match"
-  (p', _) <- check' p (Id (C U) s s')
+  (p', _) <- check p (Id (C U) s s')
   (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
   return (BinderEq p' ("x" \\ q'), Id uni a b)
+check' (Funext h) ty = do
+  (piST, f, g) <- ensureIdentity ty
+  (s, t) <- ensurePi piST
+  extendCtx "x" s $ do
+    let x = V "x"
+    (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
+    return (Funext ("x" \\ h'), Id (piST) f g)
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
@@ -158,10 +171,13 @@ extractRealizer = Realizer . extract
     extract (B b s t) = B b (extract s) $ "x" \\ extract (t // V "x")
     extract (Id s a b) = Id (extract s) (extract a) (extract b)
     extract (Reflect p e) = extract e
-    extract (Split e p) = Split (abstract2 ("x","y") (extract (instantiate2 (V "x", V "y") e))) (extract p)
+    extract (Split e p) = Split (("x","y") \\\ (extract (e /// (V "x", V "y")))) (extract p)
+    extract (BoolElim c m n b) = BoolElim ("x" \\ (extract (c // V "x"))) (extract m) (extract n) (extract b)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
     extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
     extract (f :@ a) = extract f :@ extract a
+    extract (BinderEq p q) = BinderEq (extract p) ("x" \\ extract (q // V "x"))
+    extract (Funext h) = Funext ("x" \\ extract (h // V "x"))
     extract e = e
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
@@ -179,6 +195,10 @@ ensureBinder :: Ty -> Checking (Binder, Ty, B.Scope () Syn.Tm Name)
 ensureBinder (B b s t) = return (b, s, t)
 ensureBinder _ = err "Expected binder type"
 
+ensurePi :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
+ensurePi (B Pi s t) = return (s, t)
+ensurePi _ = err "Expected pi type"
+
 assert :: Bool -> String -> Checking ()
 assert p = unless p . err
 
@@ -192,6 +212,8 @@ equate e1 e2 =
 whnf :: Tm -> Checking Tm
 whnf (B b s t) =
   B b <$> whnf s <*> ((\\) "x" <$> whnf (t // V "x"))
+whnf (Id s m n) =
+  Id <$> whnf s <*> whnf m <*> whnf n
 whnf (Lam e) =
   Lam <$> ((\\) "x" <$> whnf (e // V "x"))
 whnf (Let (s, _) e) =
@@ -203,11 +225,20 @@ whnf (f :@ a) = do
   case f' of
     Lam e -> whnf $ e // a
     _     -> return $ f' :@ a
-whnf d@(Split e p) = do
+whnf (Split e p) = do
   p' <- whnf p
   case p' of
     Pair a b -> whnf $ e /// (a,b)
-    _ -> return d
+    _ -> return $ Split e p'
+whnf (BoolElim c m n b) = do
+  c' <- (\\) "x" <$> whnf (c // V "x")
+  b' <- whnf b
+  m' <- whnf m
+  n' <- whnf n
+  case b' of
+    C Tt -> return m'
+    C Ff -> return n'
+    _ -> return $ BoolElim c' m' n' b'
 whnf (V x) = do
   rho <- asks Ctx.signature
   return $
@@ -216,5 +247,7 @@ whnf (V x) = do
       Nothing -> V x
 whnf (BinderEq p q) =
   BinderEq <$> whnf p <*> ((\\) "x" <$> whnf (q // V "x"))
+whnf (Funext h) =
+  Funext <$> ((\\) "x" <$> whnf (h // V "x"))
 whnf e = return e
 

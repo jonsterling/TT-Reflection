@@ -13,3 +13,14 @@
 |- binderEqTest in Id U (pi[x:`1]`1) (pi[x:`1]`1)
 ~> binderEq(refl; [x] refl)
 
+|- boolId in pi[x:`2]`2
+~> lam[x] boolElim([_]`2; tt; ff; x)
+
+|- boolNot in pi[x:`2]`2
+~> lam[x] boolElim([_]`2; ff; tt; x)
+
+|- boolNotNot in pi[x:`2]`2
+~> lam[x] (boolNot (boolNot x))
+
+|- boolIdEqualsBoolNotNot in Id (pi[x:`2]`2) boolId boolNotNot
+~> funext([u] boolElim([b] Id `2 (boolId b) (boolNotNot b); refl; refl; u))

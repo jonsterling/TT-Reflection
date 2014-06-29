@@ -68,7 +68,7 @@ instance Pretty (Tm String) where
       pure $ b' <> brackets (text x <> colon <> s') <+> e'
   pretty (Lam e) = scope $ do
     x  <- var
-    e' <- pretty (e // V x)
+    e' <- pretty $ e // V x
     pure $ text "λ" <> brackets (text x) <+> e'
   pretty (Reflect a b) = do
     a' <- pretty a
@@ -83,8 +83,21 @@ instance Pretty (Tm String) where
     p' <- pretty p
     scope $ do
       x  <- var
-      q' <- pretty (q // V x)
+      q' <- pretty $ q // V x
       pure $ text "binderEq" <> parens (p' <> semi <+> brackets (text x) <+> q')
+  pretty (Funext h) = scope $ do
+    x <- var
+    h' <- pretty $ h // V x
+    pure $ text "funext" <> parens (brackets (text x) <+> h')
+  pretty (BoolElim c m n b) = do
+    xc <- scope $ do
+      x  <- var
+      c' <- pretty $ c // V x
+      pure $ brackets (text x) <+> c'
+    m' <- pretty m
+    n' <- pretty n
+    b' <- pretty b
+    pure $ text "boolElim" <> parens (xc <> semi <+> m' <> semi <+> n' <> semi <+> b')
   pretty (f :@ a) = (<+>) <$> pretty f <*> pretty a
   pretty e = error $ "Welp: " ++ show e
 

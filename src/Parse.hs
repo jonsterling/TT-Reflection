@@ -96,6 +96,25 @@ parseBinderEq = do
     <$> parseTm <* whiteSpace
     <*> (semicolon *> whiteSpace *> parseBoundExpr)
 
+parseFunext :: (Monad m, TokenParsing m) => m (Tm String)
+parseFunext = do
+  reserved "funext"
+  parens $ Funext <$> parseBoundExpr
+
+parseBoolElim :: (Monad m, TokenParsing m) => m (Tm String)
+parseBoolElim = do
+  reserved "boolElim"
+  parens $ do
+    c <- parseBoundExpr
+    whiteSpace *> semicolon *> whiteSpace
+    m <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    n <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    b <- parseTm
+    return $ BoolElim c m n b
+
+
 parseApp :: (Monad m, TokenParsing m) => m (Tm String)
 parseApp = (:@) <$> parseTm <*> parseTm
 
@@ -108,6 +127,8 @@ parseTm = optionalParens parseTm'
            <|> (parseReflection <?> "reflection scope")
            <|> (parseIdentityType <?> "identity type")
            <|> (parseBinderEq <?> "binder equality expr")
+           <|> (parseFunext <?> "function extensionality expr")
+           <|> (parseBoolElim <?> "bool elimination expected")
            <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")

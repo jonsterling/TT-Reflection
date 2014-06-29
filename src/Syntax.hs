@@ -43,10 +43,12 @@ data Tm a
   | Id (Tm a) (Tm a) (Tm a)
   | Reflect (Tm a) (Tm a)
   | Split (B.Scope Bool Tm a) (Tm a)
+  | BoolElim (B.Scope () Tm a) (Tm a) (Tm a) (Tm a)
   | Lam (B.Scope () Tm a)
   | Let (Tm a, Tm a) (B.Scope () Tm a)
   | Tm a :@ Tm a
   | BinderEq (Tm a) (B.Scope () Tm a)
+  | Funext (B.Scope () Tm a)
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
 type Ty a = Tm a
@@ -71,7 +73,9 @@ instance Monad Tm where
   Lam e >>= f = Lam (e B.>>>= f)
   (x :@ y) >>= f = (x >>= f) :@ (y >>= f)
   Split e p >>= f = Split (e B.>>>= f) (p >>= f)
+  BoolElim c m n b >>= f = BoolElim (c B.>>>= f) (m >>= f) (n >>= f) (b >>= f)
   BinderEq p q >>= f = BinderEq (p >>= f) (q B.>>>= f)
+  Funext h >>= f = Funext (h B.>>>= f)
 
 abstract2 :: (Monad f, Eq a) => (a,a) -> f a -> B.Scope Bool f a
 abstract2 (x,y) =
@@ -92,6 +96,6 @@ instantiate2 (a,b) =
 u // x = B.instantiate1 x u
 x \\ u = B.abstract1 x u
 
-u /// (x,y) = instantiate2 (x,y) u
-(x,y) \\\ u = abstract2 (x,y) u
+u /// vs = instantiate2 vs u
+vs \\\ u = abstract2 vs u
 
