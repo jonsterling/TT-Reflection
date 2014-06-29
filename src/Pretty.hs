@@ -78,7 +78,7 @@ instance Pretty (Tm String) where
     s' <- pretty s
     a' <- pretty a
     b' <- pretty b
-    pure $ text "Id" <+> s' <+> a' <+> b'
+    pure $ text "Id" <> parens (s' <> semi <+> a' <> semi <+> b')
   pretty (BinderEq p q) = do
     p' <- pretty p
     scope $ do

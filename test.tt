@@ -4,13 +4,13 @@
 |- test in `1
 ~> ((id `1) <>)
 
-|- reflection-example in pi[p: (Id U `0 `1)] `0
+|- reflection-example in pi[p: Id(U; `0; `1)] `0
 ~> lam[p] reflect p in <>
 
-|- reflTest in Id `1 <> <>
+|- reflTest in Id(`1; <>; <>)
 ~> refl
 
-|- binderEqTest in Id U (pi[x:`1]`1) (pi[x:`1]`1)
+|- binderEqTest in Id(U; pi[x:`1]`1; pi[x:`1]`1)
 ~> binderEq(refl; [x] refl)
 
 |- boolId in pi[x:`2]`2
@@ -22,5 +22,5 @@
 |- boolNotNot in pi[x:`2]`2
 ~> lam[x] (boolNot (boolNot x))
 
-|- boolIdEqualsBoolNotNot in Id (pi[x:`2]`2) boolId boolNotNot
-~> funext([u] boolElim([b] Id `2 (boolId b) (boolNotNot b); refl; refl; u))
+|- boolIdEqualsBoolNotNot in Id(pi[x:`2]`2; boolId; boolNotNot)
+~> funext([u] boolElim([b] Id(`2; (boolId b); (boolNotNot b)); refl; refl; u))
