@@ -168,6 +168,10 @@ equate e1 e2 =
       err $ "Not equal: " ++ show e1 ++ ", " ++ show e2
 
 whnf :: Tm -> Checking Tm
+whnf (B b s t) =
+  B b <$> whnf s <*> ((\\) "x" <$> whnf (t // V "x"))
+whnf (Lam e) =
+  Lam <$> ((\\) "x" <$> whnf (e // V "x"))
 whnf (Let (s, _) e) =
   whnf $ e // s
 whnf (Reflect p e) =
