@@ -7,6 +7,7 @@ module Typing ( infer
               , Checking(..)
               , Ty(..)
               , Realizer(..)
+              , Context
               , extractRealizer
               , checkDecls
               ) where
@@ -51,21 +52,17 @@ check t ty = do
   check' t' ty'
 
 extendCtx :: Name -> Ty -> Checking a -> Checking a
-extendCtx x xty =
-  local $ \ctx ->
-    ctx { Ctx.typings = Map.insert x xty (Ctx.typings ctx) }
+extendCtx x xty = local $ Ctx.appendTyping (x, xty)
 
 extendSignature :: Name -> (Ty, Tm) -> Checking a -> Checking a
-extendSignature x p =
-  local $ \ctx ->
-    ctx { Ctx.signature = Map.insert x p (Ctx.signature ctx) }
+extendSignature x (a,s) = local $ Ctx.appendDecl (x, a, s)
 
 addEquation :: (Tm,Tm) -> Checking a -> Checking a
 addEquation (a,b) c = do
   a' <- whnf a
   b' <- whnf b
-  flip local c $ \ctx ->
-    ctx { Ctx.equations = Set.insert (a', b') (Ctx.equations ctx) }
+  flip local c $
+    Ctx.appendEquation (a', b')
 
 lookupTy :: Name -> Checking Ty
 lookupTy x = do

@@ -1,31 +1,35 @@
 {-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE KindSignatures     #-}
 {-# LANGUAGE GADTs              #-}
+{-# LANGUAGE KindSignatures     #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell    #-}
 {-# LANGUAGE TypeFamilies       #-}
+{-# LANGUAGE ViewPatterns       #-}
 
 module CLI where
 
 import           Parse
 import           Pretty
 import           Typing
+import qualified Context as Ctx
 
 import           Control.Applicative
 import           Control.Monad
-import qualified Control.Monad.Reader     as CM
-import qualified Control.Lens             as CL
+import qualified Control.Monad.Reader         as CM
+import qualified Control.Lens                 as CL
 import           Control.Lens.Operators
-import qualified Data.Vinyl               as DV
-import qualified Data.Vinyl.TH            as DV
-import qualified Data.Monoid              as DM
-import qualified Numeric.Natural          as NN
-import qualified Options.Applicative      as OA
-import qualified Data.Singletons.TH       as DS
-import qualified System.Console.Haskeline as SCH
-import qualified System.IO                as SI
-import qualified Text.PrettyPrint         as TPP
-import qualified Text.Trifecta            as TT
+import qualified Data.Vinyl                   as DV
+import qualified Data.Vinyl.TH                as DV
+import qualified Data.Map                     as Map
+import qualified Data.Monoid                  as DM
+import qualified Numeric.Natural              as NN
+import qualified Options.Applicative          as OA
+import qualified Data.Singletons.TH           as DS
+import qualified System.Console.Haskeline     as SCH
+import qualified System.IO                    as SI
+import qualified Text.PrettyPrint             as TPP
+import qualified Text.PrettyPrint.ANSI.Leijen as TPPAL
+import qualified Text.Trifecta                as TT
 
 import           Data.Vinyl
   ( (<-:)
@@ -130,11 +134,11 @@ parseOptions = DV.rdist $
 parseCommand :: OA.Parser Command
 parseCommand = OA.hsubparser . DM.mconcat $
         [ OA.command "check"
-           . OA.info (pure CCheck <*> parseCheckArgs)
+           . OA.info (CCheck <$> parseCheckArgs)
            . OA.progDesc
            $ "check theory files"
         , OA.command "repl"
-           . OA.info (pure  CREPL <*>  parseREPLArgs)
+           . OA.info (CREPL <$>  parseREPLArgs)
            . OA.progDesc
            $ "start the READ-EVAL-PRINT loop"
         ]
@@ -171,7 +175,7 @@ dispatchCheck
       case CM.runReaderT (runChecking (checkDecls res)) DM.mempty of
         Right artifacts ->
           putStrLn . TPP.renderStyle TPP.style . TPP.vcat $
-            pure (runFresh . pretty) <*> artifacts
+            runFresh . pretty <$> artifacts
         Left err -> print err
       putStrLn ""
 
@@ -179,33 +183,39 @@ dispatchREPL :: DV.PlainRec REPLArgsElm REPLArgsExt -> IO ()
 dispatchREPL
   = const
   . SCH.runInputT SCH.defaultSettings
-  $ loop
+  $ CM.runReaderT loop DM.mempty
   where
-    loop :: SCH.InputT IO ()
+    loop :: CM.ReaderT Context (SCH.InputT IO) ()
     loop = do
-      Just tmStr <- SCH.getInputLine "⊢ "
-      Just tyStr <- SCH.getInputLine "∈ "
+      gamma <- CM.ask
+      let barWidth = 80
+      let dname = '_' : show (Map.size . Ctx.signature $ gamma)
+      let next f = do CM.lift . SCH.outputStrLn $ replicate barWidth '=' ++ "\n"
+                      CM.local f loop
+      let parse = TT.parseString parseTm DM.mempty
+      Just (parse -> rtm) <- CM.lift $ SCH.getInputLine "⊢ "
+      Just (parse -> rty) <- CM.lift $ SCH.getInputLine "∈ "
 
-      let rtm = TT.parseString parseTm DM.mempty tmStr
-      let rty = TT.parseString parseTm DM.mempty tyStr
-
-      SCH.outputStrLn "--------------------------"
+      CM.lift . SCH.outputStrLn $ replicate barWidth '-'
 
       case (rtm, rty) of
         (TT.Success tm, TT.Success ty) -> do
-          let chk = check tm ty
-          case CM.runReaderT (runChecking chk) DM.mempty of
+          case CM.runReaderT (runChecking (check tm ty)) gamma of
             Right tder@(u, s) -> do
               let Realizer realizer = extractRealizer u
-              SCH.outputStrLn . concat $
+              let decl = (dname, s, u)
+              CM.lift . SCH.outputStrLn . concat $
                 [ "Typing: "
-                , TPP.renderStyle TPP.style . runFresh . pretty $ ("_", s, u)
+                , TPP.renderStyle TPP.style . runFresh . pretty $ decl
                 ]
-            Left err -> SCH.outputStrLn err
-        _ -> SCH.outputStrLn "Parse error"
-
-      SCH.outputStrLn "==========================\n"
-      loop
+              next $ Ctx.appendDecl decl
+            Left err -> do
+              CM.lift $ SCH.outputStrLn err
+              next id
+        results -> do
+          let errors = TPPAL.vsep $ results ^.. CL.both . TT._Failure
+          CM.lift . SCH.outputStrLn . flip TPPAL.displayS "" $ TPPAL.renderPretty 0.4 200 errors
+          next id
 
 dispatchCommand :: Command -> IO ()
 dispatchCommand
