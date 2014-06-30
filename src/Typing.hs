@@ -181,6 +181,7 @@ extractRealizer = Realizer . extract
     extract (f :@ a) = extract f :@ extract a
     extract (BinderEq a b p q) = C Dot
     extract (Funext f g h) = C Dot
+    extract (UIP p q) = C Dot
     extract e = e
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
