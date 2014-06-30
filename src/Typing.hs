@@ -176,8 +176,8 @@ extractRealizer = Realizer . extract
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
     extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
     extract (f :@ a) = extract f :@ extract a
-    extract (BinderEq p q) = BinderEq (extract p) ("x" \\ extract (q // V "x"))
-    extract (Funext h) = Funext ("x" \\ extract (h // V "x"))
+    extract (BinderEq p q) = C Dot
+    extract (Funext h) = C Dot
     extract e = e
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
