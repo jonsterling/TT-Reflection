@@ -41,7 +41,6 @@ parseConstant = Zero <$ (reserved "`0" <|> reserved "𝟘")
             <|> U    <$ (reserved "U"  <|> reserved "𝕌")
             <|> Tt   <$ reserved "tt"
             <|> Ff   <$ reserved "ff"
-            <|> Refl <$ reserved "refl"
 
 parseBinder :: (Monad m, TokenParsing m) => m Binder
 parseBinder = Pi <$ (reserved "pi" <|> reserved "Π")
@@ -118,7 +117,6 @@ parseBoolElim = do
     whiteSpace *> semicolon *> whiteSpace
     b <- parseTm
     return $ BoolElim c m n b
-
 
 parseApp :: (Monad m, TokenParsing m) => m (Tm String)
 parseApp = (:@) <$> parseTm <*> parseTm

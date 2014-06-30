@@ -46,7 +46,6 @@ instance Pretty Constant where
   pretty Tt   = pure $ text "tt"
   pretty Ff   = pure $ text "ff"
   pretty Dot  = pure $ text "♦"
-  pretty Refl = pure $ text "refl"
 
 instance Pretty (Tm String) where
   pretty (V a) = pretty a

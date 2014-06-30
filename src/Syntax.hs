@@ -31,7 +31,6 @@ data Constant
   | Tt
   | Ff
   | U
-  | Refl
   deriving (Eq, Ord, Show, Read)
 
 data Tm a

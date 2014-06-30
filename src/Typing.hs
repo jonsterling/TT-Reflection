@@ -126,12 +126,12 @@ check' (Reflect p e) rho = do
   (rho', _) <- addEquation (a,b) $ check rho $ C U
   (e', _)   <- addEquation (a,b) $ check e rho
   return (Reflect p e', rho)
-check' (C Refl) (Id s a b) = do
+check' (C Dot) (Id s a b) = do
   (s', _) <- check s $ C U
   (a', _) <- check a s'
   (b', _) <- check b s'
   equate a' b'
-  return (C Refl, Id s' a' b')
+  return (C Dot, Id s' a' b')
 check' (BinderEq p q) ty = do
   (uni, a, b) <- ensureIdentity ty
   ensureUniverse uni
