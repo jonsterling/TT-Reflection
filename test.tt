@@ -24,3 +24,9 @@
 
 |- boolIdEqualsBoolNotNot in Id(pi[x:`2]`2; boolId; boolNotNot)
 ~> funext(boolId; boolNotNot; [u] boolElim([b] Id(`2; (boolId b); (boolNotNot b)); <>; <>; u))
+
+|- reflectedVersion in Id(pi[x:`2]`2; boolId; boolNotNot)
+~> reflect boolIdEqualsBoolNotNot in <>
+
+|- uipExample in Id(Id(pi[x:`2]`2; boolId; boolNotNot); boolIdEqualsBoolNotNot; reflectedVersion)
+~> uip(boolIdEqualsBoolNotNot; reflectedVersion)

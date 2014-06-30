@@ -45,12 +45,12 @@ err :: String -> Checking x
 err e = MkChecking $ ReaderT $ \_ -> Left e
 
 infer :: Tm -> Checking Ty
-infer e = infer' =<< eval e
+infer e = infer' =<< whnf e
 
 check :: Tm -> Ty -> Checking (Tm, Ty)
 check t ty = do
-  ty' <- eval ty
-  t' <- eval t
+  ty' <- whnf ty
+  t' <- whnf t
   check' t' ty'
 
 extendCtx :: Name -> Ty -> Checking a -> Checking a
@@ -61,10 +61,10 @@ extendSignature x (a,s) = local $ Ctx.appendDecl (x, a, s)
 
 addEquation :: (Tm,Tm) -> Checking a -> Checking a
 addEquation (a,b) c = do
-  a' <- eval a
-  b' <- eval b
+  a' <- whnf a
+  b' <- whnf b
   flip local c $
-    Ctx.appendEquation (a', b')
+    Ctx.appendEquation (unAnn a', unAnn b')
 
 lookupTy :: Name -> Checking Ty
 lookupTy x = do
@@ -82,11 +82,11 @@ lookupDecl x = do
 
 lookupEquation :: (Tm, Tm) -> Checking Bool
 lookupEquation (a, b) = do
-  a' <- eval a
-  b' <- eval b
-  Set.member (a, b) <$> asks Ctx.equations
+  a' <- whnf a
+  b' <- whnf b
+  Set.member (unAnn a', unAnn b') <$> asks Ctx.equations
 
--- This is a very inefficient type checker! It computes the eval of terms
+-- This is a very inefficient type checker! It computes the whnf of terms
 -- over and over again. It would be a good idea to fix that.
 --
 infer' :: Tm -> Checking Ty
@@ -143,7 +143,7 @@ check' (Reflect p e) rho = do
   t <- infer p
   (s, a, b) <- ensureIdentity t
   (rho', _) <- addEquation (a,b) $ check rho $ C U
-  (e', _)   <- addEquation (a,b) $ check e rho
+  (e', _)   <- addEquation (a,b) $ check e rho'
   return (Reflect p e', rho)
 check' (C Dot) (Id s a b) = do
   (s', _) <- check s $ C U
@@ -185,7 +185,7 @@ extractRealizer = Realizer . extract
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
 ensureIdentity ty = do
-  ty' <- eval ty
+  ty' <- whnf ty
   case ty' of
     Id s a b -> return (s, a, b)
     _ -> err "Expected identity type"
@@ -198,9 +198,11 @@ assert :: Bool -> String -> Checking ()
 assert p = unless p . err
 
 equate :: Tm -> Tm -> Checking ()
+equate (Ann u t) e = equate u e
+equate e (Ann u t) = equate e u
 equate e1 e2 =
   unless (e1 == e2) $ do
-    reflected <- lookupEquation (e1,e2)
+    reflected <- lookupEquation (e1,e2) <|> lookupEquation (e2, e1)
     unless reflected $
       err $ "Not equal: " ++ show e1 ++ "            and             " ++ show e2
 
@@ -208,50 +210,34 @@ unAnn :: Tm -> Tm
 unAnn (Ann u s) = u
 unAnn u = u
 
-eval :: Tm -> Checking Tm
-eval (B b s t) =
-  B b <$> eval s <*> ((\\) "x" <$> eval (t // V "x"))
-eval (Id s m n) =
-  Id <$> eval s <*> eval m <*> eval n
-eval (Lam e) =
-  Lam <$> ((\\) "x" <$> eval (e // V "x"))
-eval (Let (s, _) e) =
-  eval $ e // s
-eval (Reflect p e) =
-  Reflect <$> eval p <*> eval e
-eval (f :@ a) = do
-  f' <- eval f
+whnf :: Tm -> Checking Tm
+whnf (Let (s, _) e) =
+  whnf $ e // s
+whnf (f :@ a) = do
+  a' <- whnf a
+  f' <- whnf f
   case unAnn f' of
-    Lam e -> eval $ e // a
-    _     -> return $ f' :@ a
-eval (Split e p) = do
-  p' <- eval p
+    Lam e -> whnf $ e // a'
+    _ -> return $ f' :@ a'
+whnf (Split e p) = do
+  p' <- whnf p
   case unAnn p' of
-    Pair a b -> eval $ e /// (a,b)
+    Pair a b -> whnf $ e /// (a,b)
     _ -> return $ Split e p'
-eval (BoolElim c m n b) = do
-  c' <- (\\) "x" <$> eval (c // V "x")
-  b' <- eval b
-  m' <- eval m
-  n' <- eval n
+whnf (BoolElim c m n b) = do
+  c' <- (\\) "x" <$> whnf (c // V "x")
+  b' <- whnf b
+  m' <- whnf m
+  n' <- whnf n
   case b' of
     C Tt -> return m'
     C Ff -> return n'
     _ -> return $ BoolElim c' m' n' b'
-eval (V x) = do
+whnf (V x) = do
   rho <- asks Ctx.signature
   return $
     case Map.lookup x rho of
       Just (ty, tm) -> Ann tm ty
       Nothing -> V x
-eval (BinderEq a b p q) =
-  BinderEq <$> eval a
-           <*> eval b
-           <*> eval p
-           <*> ((\\) "x" <$> eval (q // V "x"))
-eval (Funext f g h) =
-  Funext <$> eval f
-         <*> eval g
-         <*> ((\\) "x" <$> eval (h // V "x"))
-eval e = return e
+whnf e = return e
 
