@@ -105,6 +105,15 @@ parseFunext = do
   reserved "funext"
   parens $ Funext <$> parseBoundExpr
 
+parseUIP :: (Monad m, TokenParsing m) => m (Tm String)
+parseUIP = do
+  reserved "uip"
+  parens $ do
+    p <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    q <- parseTm
+    return $ UIP p q
+
 parseBoolElim :: (Monad m, TokenParsing m) => m (Tm String)
 parseBoolElim = do
   reserved "boolElim"
@@ -131,7 +140,8 @@ parseTm = optionalParens parseTm'
            <|> (parseIdentityType <?> "identity type")
            <|> (parseBinderEq <?> "binder equality expr")
            <|> (parseFunext <?> "function extensionality expr")
-           <|> (parseBoolElim <?> "bool elimination expected")
+           <|> (parseBoolElim <?> "bool elimination")
+           <|> (parseUIP <?> "UIP expr")
            <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")

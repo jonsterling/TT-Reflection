@@ -113,6 +113,11 @@ infer' (BoolElim c m n b) = do
   _ <- check n (c // C Ff)
   (b', _) <- check b (C Two)
   return $ ("x" \\ c') // b'
+infer' (UIP p q) = do
+  ty <- infer p
+  _  <- ensureIdentity ty
+  _  <- check q ty
+  return $ Id ty p q
 infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Ty -> Checking (Tm, Ty)
