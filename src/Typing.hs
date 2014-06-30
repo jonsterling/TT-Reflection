@@ -113,6 +113,14 @@ infer' (BoolElim c m n b) = do
   _ <- check n (c // C Ff)
   (b', _) <- check b (C Two)
   return $ ("x" \\ c') // b'
+infer' (Funext f g h) = do
+  ty <- infer f
+  (s, t) <- ensurePi ty
+  _ <- check g ty
+  extendCtx "x" s $ do
+    let x = V "x"
+    (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
+    return $ Id (B Pi s t) f g
 infer' (UIP p q) = do
   ty <- infer p
   _  <- ensureIdentity ty
@@ -144,11 +152,6 @@ check' (BinderEq p q) (Id (C U) a b) = do
   (p', _) <- check p (Id (C U) s s')
   (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
   return (BinderEq p' ("x" \\ q'), Id (C U) a b)
-check' (Funext h) (Id (B Pi s t) f g) =
-  extendCtx "x" s $ do
-    let x = V "x"
-    (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
-    return (Funext ("x" \\ h'), Id (B Pi s t) f g)
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
@@ -178,7 +181,7 @@ extractRealizer = Realizer . extract
     extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
     extract (f :@ a) = extract f :@ extract a
     extract (BinderEq p q) = C Dot
-    extract (Funext h) = C Dot
+    extract (Funext f g h) = C Dot
     extract e = e
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
@@ -192,6 +195,10 @@ ensureBinder :: Ty -> Checking (Binder, Ty, B.Scope () Syn.Tm Name)
 ensureBinder (B b s t) = return (b, s, t)
 ensureBinder _ = err "Expected binder type"
 
+ensurePi :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
+ensurePi (B Pi s t) = return (s, t)
+ensurePi _ = err "Expected pi type"
+
 assert :: Bool -> String -> Checking ()
 assert p = unless p . err
 
@@ -200,7 +207,11 @@ equate e1 e2 =
   unless (e1 == e2) $ do
     reflected <- lookupEquation (e1,e2)
     unless reflected $
-      err $ "Not equal: " ++ show e1 ++ ", " ++ show e2
+      err $ "Not equal: " ++ show e1 ++ "            and             " ++ show e2
+
+unAnn :: Tm -> Tm
+unAnn (Ann u s) = u
+unAnn u = u
 
 whnf :: Tm -> Checking Tm
 whnf (B b s t) =
@@ -215,12 +226,12 @@ whnf (Reflect p e) =
   Reflect <$> whnf p <*> whnf e
 whnf (f :@ a) = do
   f' <- whnf f
-  case f' of
+  case unAnn f' of
     Lam e -> whnf $ e // a
     _     -> return $ f' :@ a
 whnf (Split e p) = do
   p' <- whnf p
-  case p' of
+  case unAnn p' of
     Pair a b -> whnf $ e /// (a,b)
     _ -> return $ Split e p'
 whnf (BoolElim c m n b) = do
@@ -236,11 +247,13 @@ whnf (V x) = do
   rho <- asks Ctx.signature
   return $
     case Map.lookup x rho of
-      Just (_, tm) -> tm
+      Just (ty, tm) -> (Ann tm ty)
       Nothing -> V x
 whnf (BinderEq p q) =
   BinderEq <$> whnf p <*> ((\\) "x" <$> whnf (q // V "x"))
-whnf (Funext h) =
-  Funext <$> ((\\) "x" <$> whnf (h // V "x"))
+whnf (Funext f g h) =
+  Funext <$> whnf f
+         <*> whnf g
+         <*> ((\\) "x" <$> whnf (h // V "x"))
 whnf e = return e
 

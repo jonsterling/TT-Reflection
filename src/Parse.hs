@@ -103,7 +103,13 @@ parseBinderEq = do
 parseFunext :: (Monad m, TokenParsing m) => m (Tm String)
 parseFunext = do
   reserved "funext"
-  parens $ Funext <$> parseBoundExpr
+  parens $ do
+    f <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    g <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    h <- parseBoundExpr
+    return $ Funext f g h
 
 parseUIP :: (Monad m, TokenParsing m) => m (Tm String)
 parseUIP = do

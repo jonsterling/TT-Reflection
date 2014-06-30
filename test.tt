@@ -23,4 +23,4 @@
 ~> lam[x] (boolNot (boolNot x))
 
 |- boolIdEqualsBoolNotNot in Id(pi[x:`2]`2; boolId; boolNotNot)
-~> funext([u] boolElim([b] Id(`2; (boolId b); (boolNotNot b)); <>; <>; u))
+~> funext(boolId; boolNotNot; [u] boolElim([b] Id(`2; (boolId b); (boolNotNot b)); <>; <>; u))

@@ -84,10 +84,13 @@ instance Pretty (Tm String) where
       x  <- var
       q' <- pretty $ q // V x
       pure $ text "binderEq" <> parens (p' <> semi <+> brackets (text x) <+> q')
-  pretty (Funext h) = scope $ do
-    x <- var
-    h' <- pretty $ h // V x
-    pure $ text "funext" <> parens (brackets (text x) <+> h')
+  pretty (Funext f g h) = do
+    f' <- pretty f
+    g' <- pretty g
+    scope $ do
+      x <- var
+      h' <- pretty $ h // V x
+      pure $ text "funext" <> parens (f' <> semi <+> g' <> semi <+> brackets (text x) <+> h')
   pretty (UIP p q) = scope $ do
     p' <- pretty p
     q' <- pretty q

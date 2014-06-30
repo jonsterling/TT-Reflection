@@ -205,10 +205,10 @@ The rules for the theory are given inductive-recursively below.
 % Do we need something more fancy for this?
 \begin{equation}
   \infer{
-    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{funext}([u]M)\checks \mathsf{Id}_{\Pi_A[x]B}(f; g)
+    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{funext}(f; g; [u]M)\infers \mathsf{Id}_{\Pi_A[x]B}(f; g)
   }{
     \begin{array}{l}
-      \Gamma;\mathcal{H}\vdash_\Sigma f\checks \Pi_A[x]B\\
+      \Gamma;\mathcal{H}\vdash_\Sigma f\infers \Pi_A[x]B\\
       \Gamma;\mathcal{H}\vdash_\Sigma g\checks \Pi_A[x]B\\
       \Gamma,u:A;\mathcal{H}\vdash_\Sigma M\checks \mathsf{Id}_{[u/x]B}(f\mathop{@}u;g\mathop{@}u)
     \end{array}
