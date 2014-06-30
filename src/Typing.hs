@@ -132,22 +132,18 @@ check' (C Dot) (Id s a b) = do
   (b', _) <- check b s'
   equate a' b'
   return (C Dot, Id s' a' b')
-check' (BinderEq p q) ty = do
-  (uni, a, b) <- ensureIdentity ty
-  ensureUniverse uni
-  (binder, s, t) <- ensureBinder a
+check' (BinderEq p q) (Id (C U) a b) = do
+  (binder, s, t)    <- ensureBinder a
   (binder', s', t') <- ensureBinder b
   assert (binder == binder') "Binders do not match"
   (p', _) <- check p (Id (C U) s s')
   (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
-  return (BinderEq p' ("x" \\ q'), Id uni a b)
-check' (Funext h) ty = do
-  (piST, f, g) <- ensureIdentity ty
-  (s, t) <- ensurePi piST
+  return (BinderEq p' ("x" \\ q'), Id (C U) a b)
+check' (Funext h) (Id (B Pi s t) f g) =
   extendCtx "x" s $ do
     let x = V "x"
     (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
-    return (Funext ("x" \\ h'), Id (piST) f g)
+    return (Funext ("x" \\ h'), Id (B Pi s t) f g)
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
@@ -187,17 +183,9 @@ ensureIdentity ty = do
     Id s a b -> return (s, a, b)
     _ -> err "Expected identity type"
 
-ensureUniverse :: Ty -> Checking ()
-ensureUniverse (C U) = return ()
-ensureUniverse _ = err "Expected universe type"
-
 ensureBinder :: Ty -> Checking (Binder, Ty, B.Scope () Syn.Tm Name)
 ensureBinder (B b s t) = return (b, s, t)
 ensureBinder _ = err "Expected binder type"
-
-ensurePi :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
-ensurePi (B Pi s t) = return (s, t)
-ensurePi _ = err "Expected pi type"
 
 assert :: Bool -> String -> Checking ()
 assert p = unless p . err
