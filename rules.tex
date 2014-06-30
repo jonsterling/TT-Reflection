@@ -189,7 +189,7 @@ The rules for the theory are given inductive-recursively below.
 
 \begin{equation}
   \infer{
-    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{binderEq}(M; [y]N) \checks \mathsf{Id}_\uni(\mathrm{Q}_A[x]B;\mathrm{Q}_{A'}[x]B')
+    \Gamma;\mathcal{H}\vdash_\Sigma \mathsf{binderEq}(Q_A[x]B; Q_{A'}[x]B'; M; [y]N) \infers \mathsf{Id}_\uni(\mathrm{Q}_A[x]B;\mathrm{Q}_{A'}[x]B')
   }{
     \begin{array}{l}
       \Gamma;\mathcal{H}\vdash_\Sigma \mathrm{Q}_A[x]B \checks\uni\\

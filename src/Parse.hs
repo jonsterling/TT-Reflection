@@ -96,9 +96,15 @@ parseIdentityType = do
 parseBinderEq :: (Monad m, TokenParsing m) => m (Tm String)
 parseBinderEq = do
   reserved "binderEq"
-  parens $ BinderEq
-    <$> parseTm <* whiteSpace
-    <*> (semicolon *> whiteSpace *> parseBoundExpr)
+  parens $ do
+    a <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    b <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    p <- parseTm
+    whiteSpace *> semicolon *> whiteSpace
+    q <- parseBoundExpr
+    return $ BinderEq a b p q
 
 parseFunext :: (Monad m, TokenParsing m) => m (Tm String)
 parseFunext = do

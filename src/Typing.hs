@@ -121,6 +121,12 @@ infer' (Funext f g h) = do
     let x = V "x"
     (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
     return $ Id (B Pi s t) f g
+infer' (BinderEq a@(B Pi s t) b@(B Pi s' t') p q) = do
+  (a', _) <- check a (C U)
+  (b', _) <- check b (C U)
+  (p', _) <- check p (Id (C U) s s')
+  (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
+  return $ Id (C U) a' b'
 infer' (UIP p q) = do
   ty <- infer p
   _  <- ensureIdentity ty
@@ -145,13 +151,6 @@ check' (C Dot) (Id s a b) = do
   (b', _) <- check b s'
   equate a' b'
   return (C Dot, Id s' a' b')
-check' (BinderEq p q) (Id (C U) a b) = do
-  (binder, s, t)    <- ensureBinder a
-  (binder', s', t') <- ensureBinder b
-  assert (binder == binder') "Binders do not match"
-  (p', _) <- check p (Id (C U) s s')
-  (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
-  return (BinderEq p' ("x" \\ q'), Id (C U) a b)
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
@@ -180,7 +179,7 @@ extractRealizer = Realizer . extract
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
     extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
     extract (f :@ a) = extract f :@ extract a
-    extract (BinderEq p q) = C Dot
+    extract (BinderEq a b p q) = C Dot
     extract (Funext f g h) = C Dot
     extract e = e
 
@@ -190,10 +189,6 @@ ensureIdentity ty = do
   case ty' of
     Id s a b -> return (s, a, b)
     _ -> err "Expected identity type"
-
-ensureBinder :: Ty -> Checking (Binder, Ty, B.Scope () Syn.Tm Name)
-ensureBinder (B b s t) = return (b, s, t)
-ensureBinder _ = err "Expected binder type"
 
 ensurePi :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
 ensurePi (B Pi s t) = return (s, t)
@@ -249,8 +244,11 @@ whnf (V x) = do
     case Map.lookup x rho of
       Just (ty, tm) -> (Ann tm ty)
       Nothing -> V x
-whnf (BinderEq p q) =
-  BinderEq <$> whnf p <*> ((\\) "x" <$> whnf (q // V "x"))
+whnf (BinderEq a b p q) =
+  BinderEq <$> whnf a
+           <*> whnf b
+           <*> whnf p
+           <*> ((\\) "x" <$> whnf (q // V "x"))
 whnf (Funext f g h) =
   Funext <$> whnf f
          <*> whnf g

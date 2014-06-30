@@ -46,7 +46,7 @@ data Tm a
   | Lam (B.Scope () Tm a)
   | Let (Tm a, Tm a) (B.Scope () Tm a)
   | Tm a :@ Tm a
-  | BinderEq (Tm a) (B.Scope () Tm a)
+  | BinderEq (Tm a) (Tm a) (Tm a) (B.Scope () Tm a)
   | Funext (Tm a) (Tm a) (B.Scope () Tm a)
   | UIP (Tm a) (Tm a)
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
@@ -74,7 +74,7 @@ instance Monad Tm where
   (x :@ y) >>= f = (x >>= f) :@ (y >>= f)
   Split e p >>= f = Split (e B.>>>= f) (p >>= f)
   BoolElim c m n b >>= f = BoolElim (c B.>>>= f) (m >>= f) (n >>= f) (b >>= f)
-  BinderEq p q >>= f = BinderEq (p >>= f) (q B.>>>= f)
+  BinderEq a b p q >>= f = BinderEq (a >>= f) (b >>= f) (p >>= f) (q B.>>>= f)
   Funext m n h >>= f = Funext (m >>= f) (n >>= f) (h B.>>>= f)
   UIP p q >>= f = UIP (p >>= f) (q >>= f)
 

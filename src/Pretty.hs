@@ -78,12 +78,14 @@ instance Pretty (Tm String) where
     a' <- pretty a
     b' <- pretty b
     pure $ text "Id" <> parens (s' <> semi <+> a' <> semi <+> b')
-  pretty (BinderEq p q) = do
+  pretty (BinderEq a b p q) = do
+    a' <- pretty a
+    b' <- pretty b
     p' <- pretty p
     scope $ do
       x  <- var
       q' <- pretty $ q // V x
-      pure $ text "binderEq" <> parens (p' <> semi <+> brackets (text x) <+> q')
+      pure $ text "binderEq" <> parens (a' <> semi <+> b' <> semi <+> p' <> semi <+> brackets (text x) <+> q')
   pretty (Funext f g h) = do
     f' <- pretty f
     g' <- pretty g
