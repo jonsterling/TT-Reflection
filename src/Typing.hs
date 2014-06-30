@@ -45,12 +45,12 @@ err :: String -> Checking x
 err e = MkChecking $ ReaderT $ \_ -> Left e
 
 infer :: Tm -> Checking Ty
-infer e = infer' =<< whnf e
+infer e = infer' =<< eval e
 
 check :: Tm -> Ty -> Checking (Tm, Ty)
 check t ty = do
-  ty' <- whnf ty
-  t' <- whnf t
+  ty' <- eval ty
+  t' <- eval t
   check' t' ty'
 
 extendCtx :: Name -> Ty -> Checking a -> Checking a
@@ -61,8 +61,8 @@ extendSignature x (a,s) = local $ Ctx.appendDecl (x, a, s)
 
 addEquation :: (Tm,Tm) -> Checking a -> Checking a
 addEquation (a,b) c = do
-  a' <- whnf a
-  b' <- whnf b
+  a' <- eval a
+  b' <- eval b
   flip local c $
     Ctx.appendEquation (a', b')
 
@@ -82,11 +82,11 @@ lookupDecl x = do
 
 lookupEquation :: (Tm, Tm) -> Checking Bool
 lookupEquation (a, b) = do
-  a' <- whnf a
-  b' <- whnf b
+  a' <- eval a
+  b' <- eval b
   Set.member (a, b) <$> asks Ctx.equations
 
--- This is a very inefficient type checker! It computes the whnf of terms
+-- This is a very inefficient type checker! It computes the eval of terms
 -- over and over again. It would be a good idea to fix that.
 --
 infer' :: Tm -> Checking Ty
@@ -185,7 +185,7 @@ extractRealizer = Realizer . extract
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
 ensureIdentity ty = do
-  ty' <- whnf ty
+  ty' <- eval ty
   case ty' of
     Id s a b -> return (s, a, b)
     _ -> err "Expected identity type"
@@ -208,50 +208,50 @@ unAnn :: Tm -> Tm
 unAnn (Ann u s) = u
 unAnn u = u
 
-whnf :: Tm -> Checking Tm
-whnf (B b s t) =
-  B b <$> whnf s <*> ((\\) "x" <$> whnf (t // V "x"))
-whnf (Id s m n) =
-  Id <$> whnf s <*> whnf m <*> whnf n
-whnf (Lam e) =
-  Lam <$> ((\\) "x" <$> whnf (e // V "x"))
-whnf (Let (s, _) e) =
-  whnf $ e // s
-whnf (Reflect p e) =
-  Reflect <$> whnf p <*> whnf e
-whnf (f :@ a) = do
-  f' <- whnf f
+eval :: Tm -> Checking Tm
+eval (B b s t) =
+  B b <$> eval s <*> ((\\) "x" <$> eval (t // V "x"))
+eval (Id s m n) =
+  Id <$> eval s <*> eval m <*> eval n
+eval (Lam e) =
+  Lam <$> ((\\) "x" <$> eval (e // V "x"))
+eval (Let (s, _) e) =
+  eval $ e // s
+eval (Reflect p e) =
+  Reflect <$> eval p <*> eval e
+eval (f :@ a) = do
+  f' <- eval f
   case unAnn f' of
-    Lam e -> whnf $ e // a
+    Lam e -> eval $ e // a
     _     -> return $ f' :@ a
-whnf (Split e p) = do
-  p' <- whnf p
+eval (Split e p) = do
+  p' <- eval p
   case unAnn p' of
-    Pair a b -> whnf $ e /// (a,b)
+    Pair a b -> eval $ e /// (a,b)
     _ -> return $ Split e p'
-whnf (BoolElim c m n b) = do
-  c' <- (\\) "x" <$> whnf (c // V "x")
-  b' <- whnf b
-  m' <- whnf m
-  n' <- whnf n
+eval (BoolElim c m n b) = do
+  c' <- (\\) "x" <$> eval (c // V "x")
+  b' <- eval b
+  m' <- eval m
+  n' <- eval n
   case b' of
     C Tt -> return m'
     C Ff -> return n'
     _ -> return $ BoolElim c' m' n' b'
-whnf (V x) = do
+eval (V x) = do
   rho <- asks Ctx.signature
   return $
     case Map.lookup x rho of
-      Just (ty, tm) -> (Ann tm ty)
+      Just (ty, tm) -> Ann tm ty
       Nothing -> V x
-whnf (BinderEq a b p q) =
-  BinderEq <$> whnf a
-           <*> whnf b
-           <*> whnf p
-           <*> ((\\) "x" <$> whnf (q // V "x"))
-whnf (Funext f g h) =
-  Funext <$> whnf f
-         <*> whnf g
-         <*> ((\\) "x" <$> whnf (h // V "x"))
-whnf e = return e
+eval (BinderEq a b p q) =
+  BinderEq <$> eval a
+           <*> eval b
+           <*> eval p
+           <*> ((\\) "x" <$> eval (q // V "x"))
+eval (Funext f g h) =
+  Funext <$> eval f
+         <*> eval g
+         <*> ((\\) "x" <$> eval (h // V "x"))
+eval e = return e
 
