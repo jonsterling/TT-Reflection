@@ -4,6 +4,35 @@
 |- test in `1
 ~> ((id `1) <>)
 
-|- reflection-example in pi[p: (Id U `0 `1)] `0
+|- reflection-example in pi[p: Id(U; `0; `1)] `0
 ~> lam[p] reflect p in <>
 
+|- trivialTest in Id(`1; <>; <>)
+~> <>
+
+|- binderEqTest in Id(U; pi[x:`1]`1; pi[x:`1]`1)
+~> binderEq(pi[x:`1]`1; pi[x:`1]`1; <>; [x] <>)
+
+|- boolId in pi[x:`2]`2
+~> lam[x] boolElim([_]`2; tt; ff; x)
+
+|- boolNot in pi[x:`2]`2
+~> lam[x] boolElim([_]`2; ff; tt; x)
+
+|- boolNotNot in pi[x:`2]`2
+~> lam[x] (boolNot (boolNot x))
+
+|- boolIdEqualsBoolNotNot in Id(pi[x:`2]`2; boolId; boolNotNot)
+~> funext(boolId; boolNotNot; [u] boolElim([b] Id(`2; (boolId b); (boolNotNot b)); <>; <>; u))
+
+|- reflectedVersion in Id(pi[x:`2]`2; boolId; boolNotNot)
+~> reflect boolIdEqualsBoolNotNot in <>
+
+|- uipExample in Id(Id(pi[x:`2]`2; boolId; boolNotNot); boolIdEqualsBoolNotNot; reflectedVersion)
+~> uip(boolIdEqualsBoolNotNot; reflectedVersion)
+
+|- pairExample in sg[x:U]x
+~> < `2, tt >
+
+|- pairEqExample in Id(sg[x:U]x; <`2, tt>; <`2, tt>)
+~> pairEq(<`2, tt>; <`2, tt>; <>; <>)

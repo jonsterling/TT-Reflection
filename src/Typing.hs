@@ -19,6 +19,8 @@ import qualified Syntax               as Syn
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 
+import qualified Bound                as B
+
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Reader
@@ -62,7 +64,7 @@ addEquation (a,b) c = do
   a' <- whnf a
   b' <- whnf b
   flip local c $
-    Ctx.appendEquation (a', b')
+    Ctx.appendEquation (unAnn a', unAnn b')
 
 lookupTy :: Name -> Checking Ty
 lookupTy x = do
@@ -82,7 +84,7 @@ lookupEquation :: (Tm, Tm) -> Checking Bool
 lookupEquation (a, b) = do
   a' <- whnf a
   b' <- whnf b
-  Set.member (a, b) <$> asks Ctx.equations
+  Set.member (unAnn a', unAnn b') <$> asks Ctx.equations
 
 -- This is a very inefficient type checker! It computes the whnf of terms
 -- over and over again. It would be a good idea to fix that.
@@ -105,6 +107,59 @@ infer' (Id s a b) = do
   _ <- check a s'
   _ <- check b s'
   return $ C U
+infer' (BoolElim c m n b) = do
+  (c', _) <- extendCtx "x" (C Two) $ check (c // V "x") $ C U
+  _ <- check m (c // C Tt)
+  _ <- check n (c // C Ff)
+  (b', _) <- check b (C Two)
+  return $ ("x" \\ c') // b'
+infer' (Spread c e p) = do
+  ty <- infer p
+  (s, t) <- ensureSg ty
+  (c', _) <- extendCtx "u" ty $ check (c // V "u") (C U)
+  (e', _) <- extendCtx "v" s
+             . extendCtx "w" (t // V "v")
+             $ check (e /// (V "v", V "w")) (c // (Pair (V "v") (V "w")))
+  return $ c // p
+infer' (Proj True p) = do
+  ty <- infer p
+  (s, t) <- ensureSg ty
+  return s
+infer' (Proj False p) = do
+  ty <- infer p
+  (s, t) <- ensureSg ty
+  whnf $ t // Proj True p
+infer' (f :@ x) = do
+  ty <- infer f
+  (s, t)  <- ensurePi ty
+  (x', _) <- check x s
+  return $ t // x'
+infer' (Funext f g h) = do
+  ty <- infer f
+  (s, t) <- ensurePi ty
+  _ <- check g ty
+  extendCtx "x" s $ do
+    let x = V "x"
+    (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
+    return $ Id (B Pi s t) f g
+infer' (PairEq m n p q) = do
+  ty <- infer m
+  (s, t) <- ensureSg ty
+  (n', _) <- check n ty
+  (p', _) <- check p $ Id s (Proj True m) (Proj True n)
+  (q', _) <- addEquation (Proj True m, Proj True n) $ check q $ Id (t // Proj True m) (Proj False m) (Proj False n)
+  return $ Id ty m n
+infer' (BinderEq a@(B Pi s t) b@(B Pi s' t') p q) = do
+  (a', _) <- check a (C U)
+  (b', _) <- check b (C U)
+  (p', _) <- check p (Id (C U) s s')
+  (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
+  return $ Id (C U) a' b'
+infer' (UIP p q) = do
+  ty <- infer p
+  _  <- ensureIdentity ty
+  _  <- check q ty
+  return $ Id ty p q
 infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Ty -> Checking (Tm, Ty)
@@ -115,17 +170,31 @@ check' (V x) ty = do
 check' (Reflect p e) rho = do
   t <- infer p
   (s, a, b) <- ensureIdentity t
-  (e', _) <- addEquation (a,b) $ check e rho
+  (rho', _) <- addEquation (a,b) $ check rho $ C U
+  (e', _)   <- addEquation (a,b) $ check e rho'
   return (Reflect p e', rho)
-check' (C Refl) (Id s a b) = do
+check' (C Dot) (Id s a b) = do
   (s', _) <- check s $ C U
   (a', _) <- check a s'
   (b', _) <- check b s'
   equate a' b'
-  return (C Refl, Id s' a' b')
+  return (C Dot, Id s' a' b')
+check' (Pair a b) (B Sg sg tau) = do
+  (a', _) <- check a sg
+  (b', _) <- check b $ tau // a'
+  return (Pair a' b', B Sg sg tau)
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
+check' (PairEq m n p q) (Id a m' n') = do
+  (s, t) <- ensureSg a
+  _ <- check m a
+  _ <- check n a
+  equate m m'
+  equate n n'
+  (p', _) <- check p $ Id s (Proj True m) (Proj True n)
+  (q', _) <- addEquation (Proj True m, Proj True n) $ check q $ Id (t // Proj True m) (Proj False m) (Proj False n)
+  return $ (PairEq m n p q, Id a m n)
 check' t ty = do
   tty <- infer t
   equate ty tty
@@ -146,10 +215,16 @@ extractRealizer = Realizer . extract
     extract (B b s t) = B b (extract s) $ "x" \\ extract (t // V "x")
     extract (Id s a b) = Id (extract s) (extract a) (extract b)
     extract (Reflect p e) = extract e
-    extract (Split e p) = Split (abstract2 ("x","y") (extract (instantiate2 (V "x", V "y") e))) (extract p)
+    extract (Spread c e p) = Spread ("x" \\ extract (c // V "x")) (("x","y") \\\ (extract (e /// (V "x", V "y")))) (extract p)
+    extract (Proj b p) = Proj b (extract p)
+    extract (BoolElim c m n b) = BoolElim ("x" \\ (extract (c // V "x"))) (extract m) (extract n) (extract b)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
-    extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
+    extract (Let a e) = extract (e // a)
     extract (f :@ a) = extract f :@ extract a
+    extract (BinderEq a b p q) = C Dot
+    extract (Funext f g h) = C Dot
+    extract (PairEq m n p q) = C Dot
+    extract (UIP p q) = C Dot
     extract e = e
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
@@ -159,33 +234,68 @@ ensureIdentity ty = do
     Id s a b -> return (s, a, b)
     _ -> err "Expected identity type"
 
+ensurePi :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
+ensurePi (B Pi s t) = return (s, t)
+ensurePi _ = err "Expected pi type"
+
+ensureSg :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
+ensureSg (B Sg s t) = return (s, t)
+ensureSg _ = err "Expected sigma type"
+
+assert :: Bool -> String -> Checking ()
+assert p = unless p . err
+
 equate :: Tm -> Tm -> Checking ()
+equate (Ann u t) e = equate u e
+equate e (Ann u t) = equate e u
 equate e1 e2 =
   unless (e1 == e2) $ do
-    reflected <- lookupEquation (e1,e2)
+    reflected <- lookupEquation (e1,e2) <|> lookupEquation (e2, e1)
     unless reflected $
-      err $ "Not equal: " ++ show e1 ++ ", " ++ show e2
+      err $ "Not equal: " ++ show e1 ++ "            and             " ++ show e2
+
+unAnn :: Tm -> Tm
+unAnn (Ann u s) = u
+unAnn u = u
 
 whnf :: Tm -> Checking Tm
-whnf (Let (s, _) e) =
+whnf (Let s e) =
   whnf $ e // s
-whnf (Reflect p e) =
-  Reflect <$> whnf p <*> whnf e
 whnf (f :@ a) = do
+  a' <- whnf a
   f' <- whnf f
-  case f' of
-    Lam e -> whnf $ e // a
-    _     -> return $ f' :@ a
-whnf d@(Split e p) = do
+  case unAnn f' of
+    Lam e -> whnf $ e // a'
+    _ -> return $ f' :@ a'
+whnf (Spread c e p) = do
   p' <- whnf p
-  case p' of
+  case unAnn p' of
     Pair a b -> whnf $ e /// (a,b)
-    _ -> return d
+    _ -> return $ Spread c e p'
+whnf (Proj True p) = do
+  p' <- whnf p
+  case unAnn p' of
+    Pair a b -> whnf a
+    _ -> return $ Proj True p'
+whnf (Proj False p) = do
+  p' <- whnf p
+  case unAnn p' of
+    Pair a b -> whnf b
+    _ -> return $ Proj False p'
+whnf (BoolElim c m n b) = do
+  c' <- (\\) "x" <$> whnf (c // V "x")
+  b' <- whnf b
+  m' <- whnf m
+  n' <- whnf n
+  case b' of
+    C Tt -> return m'
+    C Ff -> return n'
+    _ -> return $ BoolElim c' m' n' b'
 whnf (V x) = do
   rho <- asks Ctx.signature
   return $
     case Map.lookup x rho of
-      Just (_, tm) -> tm
+      Just (ty, tm) -> Ann tm ty
       Nothing -> V x
 whnf e = return e
 

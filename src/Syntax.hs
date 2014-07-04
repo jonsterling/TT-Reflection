@@ -31,7 +31,6 @@ data Constant
   | Tt
   | Ff
   | U
-  | Refl
   deriving (Eq, Ord, Show, Read)
 
 data Tm a
@@ -42,10 +41,16 @@ data Tm a
   | B Binder (Tm a) (B.Scope () Tm a)
   | Id (Tm a) (Tm a) (Tm a)
   | Reflect (Tm a) (Tm a)
-  | Split (B.Scope Bool Tm a) (Tm a)
+  | Spread (B.Scope () Tm a) (B.Scope Bool Tm a) (Tm a)
+  | Proj Bool (Tm a)
+  | BoolElim (B.Scope () Tm a) (Tm a) (Tm a) (Tm a)
   | Lam (B.Scope () Tm a)
-  | Let (Tm a, Tm a) (B.Scope () Tm a)
+  | Let (Tm a) (B.Scope () Tm a)
   | Tm a :@ Tm a
+  | BinderEq (Tm a) (Tm a) (Tm a) (B.Scope () Tm a)
+  | Funext (Tm a) (Tm a) (B.Scope () Tm a)
+  | PairEq (Tm a) (Tm a) (Tm a) (Tm a)
+  | UIP (Tm a) (Tm a)
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
 type Ty a = Tm a
@@ -66,10 +71,16 @@ instance Monad Tm where
   B bnd s t >>= f = B bnd (s >>= f) (t B.>>>= f)
   Id s a b >>= f = Id (s >>= f) (a >>= f) (b >>= f)
   Reflect p e >>= f = Reflect (p >>= f) (e >>= f)
-  Let (s, sty) e >>= f = Let (s >>= f, sty >>= f) (e B.>>>= f)
+  Let s e >>= f = Let (s >>= f) (e B.>>>= f)
   Lam e >>= f = Lam (e B.>>>= f)
   (x :@ y) >>= f = (x >>= f) :@ (y >>= f)
-  Split e p >>= f = Split (e B.>>>= f) (p >>= f)
+  Spread c e p >>= f = Spread (c B.>>>= f) (e B.>>>= f) (p >>= f)
+  Proj b p >>= f = Proj b (p >>= f)
+  BoolElim c m n b >>= f = BoolElim (c B.>>>= f) (m >>= f) (n >>= f) (b >>= f)
+  BinderEq a b p q >>= f = BinderEq (a >>= f) (b >>= f) (p >>= f) (q B.>>>= f)
+  Funext m n h >>= f = Funext (m >>= f) (n >>= f) (h B.>>>= f)
+  PairEq m n p q >>= f = PairEq (m >>= f) (n >>= f) (p >>= f) (q >>= f)
+  UIP p q >>= f = UIP (p >>= f) (q >>= f)
 
 abstract2 :: (Monad f, Eq a) => (a,a) -> f a -> B.Scope Bool f a
 abstract2 (x,y) =
@@ -90,6 +101,6 @@ instantiate2 (a,b) =
 u // x = B.instantiate1 x u
 x \\ u = B.abstract1 x u
 
-u /// (x,y) = instantiate2 (x,y) u
-(x,y) \\\ u = abstract2 (x,y) u
+u /// vs = instantiate2 vs u
+vs \\\ u = abstract2 vs u
 

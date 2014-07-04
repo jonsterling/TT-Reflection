@@ -30,6 +30,9 @@ identifier = ident emptyOps
 reserved :: (Monad m, TokenParsing m) => String -> m ()
 reserved = reserve emptyOps
 
+semicolon :: CharParsing m => m Char
+semicolon = char ';'
+
 parseConstant :: (Monad m, TokenParsing m) => m Constant
 parseConstant = Zero <$ (reserved "`0" <|> reserved "𝟘")
             <|> One  <$ (reserved "`1" <|> reserved "𝟙")
@@ -38,7 +41,6 @@ parseConstant = Zero <$ (reserved "`0" <|> reserved "𝟘")
             <|> U    <$ (reserved "U"  <|> reserved "𝕌")
             <|> Tt   <$ reserved "tt"
             <|> Ff   <$ reserved "ff"
-            <|> Refl <$ reserved "refl"
 
 parseBinder :: (Monad m, TokenParsing m) => m Binder
 parseBinder = Pi <$ (reserved "pi" <|> reserved "Π")
@@ -59,6 +61,12 @@ parseBoundExpr = do
   e <- parseTm
   return $ u \\ e
 
+parseBoundExpr2 :: (Monad m, TokenParsing m) => m (B.Scope Bool Tm String)
+parseBoundExpr2 = do
+  (u,v) <- brackets $ (,) <$> identifier <*> identifier
+  e <- parseTm
+  return $ (u,v) \\\ e
+
 parseAnnot :: (Monad m, TokenParsing m) => m (String, Tm String)
 parseAnnot = (,) <$> identifier <* colon <*> parseTm
 
@@ -69,6 +77,16 @@ parseLambda = reserved "lam"
 parseLambdaExpr :: (Monad m, TokenParsing m) => m (Tm String)
 parseLambdaExpr = Lam
               <$> (parseLambda *> whiteSpace *> parseBoundExpr)
+
+parseLet :: (Monad m, TokenParsing m) => m (Tm String)
+parseLet = do
+  reserved "let"
+  x <- identifier
+  reserved "="
+  s <- parseTm
+  reserved "in"
+  e <- parseTm
+  return $ Let s (x \\ e)
 
 parseBinderExpr :: (Monad m, TokenParsing m) => m (Tm String)
 parseBinderExpr = uncurry . B
@@ -81,13 +99,103 @@ parseReflection = Reflect
               <*> (reserved "in" *> parseTm)
 
 parseIdentityType :: (Monad m, TokenParsing m) => m (Tm String)
-parseIdentityType = Id
-                <$> (reserved "Id" *> parseTm)
-                <*> parseTm
-                <*> parseTm
+parseIdentityType = do
+  reserved "Id"
+  parens $ do
+    s <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    m <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    n <- parseTm
+    return $ Id s m n
+
+parseBinderEq :: (Monad m, TokenParsing m) => m (Tm String)
+parseBinderEq = do
+  reserved "binderEq"
+  parens $ do
+    a <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    b <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    p <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    q <- parseBoundExpr
+    return $ BinderEq a b p q
+
+parseFunext :: (Monad m, TokenParsing m) => m (Tm String)
+parseFunext = do
+  reserved "funext"
+  parens $ do
+    f <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    g <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    h <- parseBoundExpr
+    return $ Funext f g h
+
+parseUIP :: (Monad m, TokenParsing m) => m (Tm String)
+parseUIP = do
+  reserved "uip"
+  parens $ do
+    p <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    q <- parseTm
+    return $ UIP p q
+
+parseBoolElim :: (Monad m, TokenParsing m) => m (Tm String)
+parseBoolElim = do
+  reserved "boolElim"
+  parens $ do
+    c <- parseBoundExpr
+    whiteSpace; semicolon; whiteSpace
+    m <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    n <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    b <- parseTm
+    return $ BoolElim c m n b
 
 parseApp :: (Monad m, TokenParsing m) => m (Tm String)
 parseApp = (:@) <$> parseTm <*> parseTm
+
+parsePair :: (Monad m, TokenParsing m) => m (Tm String)
+parsePair = do
+  reserved "⟨" <|> reserved "<"
+  m <- parseTm
+  whiteSpace; comma; whiteSpace
+  n <- parseTm
+  reserved "⟩" <|> reserved ">"
+  return $ Pair m n
+
+parseSpread :: (Monad m, TokenParsing m) => m (Tm String)
+parseSpread = do
+  reserved "spread"
+  parens $ do
+    c <- parseBoundExpr
+    whiteSpace; semicolon; whiteSpace
+    e <- parseBoundExpr2
+    whiteSpace; semicolon; whiteSpace
+    p <- parseTm
+    return $ Spread c e p
+
+parseProj1 :: (Monad m, TokenParsing m) => m (Tm String)
+parseProj1 = (reserved "π₁" <|> reserved "pi1") *> (Proj True <$> parens parseTm)
+
+parseProj2 :: (Monad m, TokenParsing m) => m (Tm String)
+parseProj2 = (reserved "π₂" <|> reserved "pi2") *> (Proj False <$> parens parseTm)
+
+parsePairEq :: (Monad m, TokenParsing m) => m (Tm String)
+parsePairEq = do
+  reserved "pairEq"
+  parens $ do
+    m <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    n <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    p <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    q <- parseTm
+    return $ PairEq m n p q
 
 parseTm :: (Monad m, TokenParsing m) => m (Tm String)
 parseTm = optionalParens parseTm'
@@ -97,6 +205,16 @@ parseTm = optionalParens parseTm'
            <|> (parseBinderExpr <?> "binder expr")
            <|> (parseReflection <?> "reflection scope")
            <|> (parseIdentityType <?> "identity type")
+           <|> (parseBinderEq <?> "binder equality expr")
+           <|> (parseFunext <?> "function extensionality expr")
+           <|> (parsePairEq <?> "pairEq expr")
+           <|> (parseBoolElim <?> "bool elimination")
+           <|> (parseUIP <?> "UIP expr")
+           <|> (parseSpread <?> "spread expr")
+           <|> (parseProj1 <?> "pi1 expr")
+           <|> (parseProj2 <?> "pi2 expr")
+           <|> (parsePair <?> "pair expr")
+           <|> (parseLet <?> "let expr")
            <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")
