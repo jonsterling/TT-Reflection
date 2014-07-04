@@ -178,7 +178,7 @@ extractRealizer = Realizer . extract
     extract (B b s t) = B b (extract s) $ "x" \\ extract (t // V "x")
     extract (Id s a b) = Id (extract s) (extract a) (extract b)
     extract (Reflect p e) = extract e
-    extract (Spread e p) = Spread (("x","y") \\\ (extract (e /// (V "x", V "y")))) (extract p)
+    extract (Spread c e p) = Spread ("x" \\ extract (c // V "x")) (("x","y") \\\ (extract (e /// (V "x", V "y")))) (extract p)
     extract (BoolElim c m n b) = BoolElim ("x" \\ (extract (c // V "x"))) (extract m) (extract n) (extract b)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
     extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
@@ -224,11 +224,11 @@ whnf (f :@ a) = do
   case unAnn f' of
     Lam e -> whnf $ e // a'
     _ -> return $ f' :@ a'
-whnf (Spread e p) = do
+whnf (Spread c e p) = do
   p' <- whnf p
   case unAnn p' of
     Pair a b -> whnf $ e /// (a,b)
-    _ -> return $ Spread e p'
+    _ -> return $ Spread c e p'
 whnf (BoolElim c m n b) = do
   c' <- (\\) "x" <$> whnf (c // V "x")
   b' <- whnf b
