@@ -121,6 +121,14 @@ infer' (Spread c e p) = do
              . extendCtx "w" (t // V "v")
              $ check (e /// (V "v", V "w")) (c // (Pair (V "v") (V "w")))
   return $ c // p
+infer' (Proj True p) = do
+  ty <- infer p
+  (s, t) <- ensureSg ty
+  return s
+infer' (Proj False p) = do
+  ty <- infer p
+  (s, t) <- ensureSg ty
+  whnf $ t // Proj True p
 infer' (f :@ x) = do
   ty <- infer f
   (s, t)  <- ensurePi ty
@@ -192,6 +200,7 @@ extractRealizer = Realizer . extract
     extract (Id s a b) = Id (extract s) (extract a) (extract b)
     extract (Reflect p e) = extract e
     extract (Spread c e p) = Spread ("x" \\ extract (c // V "x")) (("x","y") \\\ (extract (e /// (V "x", V "y")))) (extract p)
+    extract (Proj b p) = Proj b (extract p)
     extract (BoolElim c m n b) = BoolElim ("x" \\ (extract (c // V "x"))) (extract m) (extract n) (extract b)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
     extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
@@ -246,6 +255,16 @@ whnf (Spread c e p) = do
   case unAnn p' of
     Pair a b -> whnf $ e /// (a,b)
     _ -> return $ Spread c e p'
+whnf (Proj True p) = do
+  p' <- whnf p
+  case unAnn p' of
+    Pair a b -> whnf a
+    _ -> return $ Proj True p'
+whnf (Proj False p) = do
+  p' <- whnf p
+  case unAnn p' of
+    Pair a b -> whnf b
+    _ -> return $ Proj False p'
 whnf (BoolElim c m n b) = do
   c' <- (\\) "x" <$> whnf (c // V "x")
   b' <- whnf b
