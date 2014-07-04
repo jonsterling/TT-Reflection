@@ -49,6 +49,7 @@ data Tm a
   | Tm a :@ Tm a
   | BinderEq (Tm a) (Tm a) (Tm a) (B.Scope () Tm a)
   | Funext (Tm a) (Tm a) (B.Scope () Tm a)
+  | PairEq (Tm a) (Tm a) (Tm a) (Tm a)
   | UIP (Tm a) (Tm a)
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
@@ -78,6 +79,7 @@ instance Monad Tm where
   BoolElim c m n b >>= f = BoolElim (c B.>>>= f) (m >>= f) (n >>= f) (b >>= f)
   BinderEq a b p q >>= f = BinderEq (a >>= f) (b >>= f) (p >>= f) (q B.>>>= f)
   Funext m n h >>= f = Funext (m >>= f) (n >>= f) (h B.>>>= f)
+  PairEq m n p q >>= f = PairEq (m >>= f) (n >>= f) (p >>= f) (q >>= f)
   UIP p q >>= f = UIP (p >>= f) (q >>= f)
 
 abstract2 :: (Monad f, Eq a) => (a,a) -> f a -> B.Scope Bool f a

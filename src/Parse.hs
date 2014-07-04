@@ -184,6 +184,19 @@ parseProj1 = (reserved "π₁" <|> reserved "pi1") *> (Proj True <$> parens pars
 parseProj2 :: (Monad m, TokenParsing m) => m (Tm String)
 parseProj2 = (reserved "π₂" <|> reserved "pi2") *> (Proj False <$> parens parseTm)
 
+parsePairEq :: (Monad m, TokenParsing m) => m (Tm String)
+parsePairEq = do
+  reserved "pairEq"
+  parens $ do
+    m <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    n <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    p <- parseTm
+    whiteSpace; semicolon; whiteSpace
+    q <- parseTm
+    return $ PairEq m n p q
+
 parseTm :: (Monad m, TokenParsing m) => m (Tm String)
 parseTm = optionalParens parseTm'
   where

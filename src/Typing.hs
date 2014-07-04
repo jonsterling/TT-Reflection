@@ -142,6 +142,13 @@ infer' (Funext f g h) = do
     let x = V "x"
     (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
     return $ Id (B Pi s t) f g
+infer' (PairEq m n p q) = do
+  ty <- infer m
+  (s, t) <- ensureSg ty
+  (n', _) <- check n ty
+  (p', _) <- check p $ Id s (Proj True m) (Proj True n)
+  (q', _) <- addEquation (Proj True m, Proj True n) $ check q $ Id (t // Proj True m) (Proj False m) (Proj False n)
+  return $ Id ty m n
 infer' (BinderEq a@(B Pi s t) b@(B Pi s' t') p q) = do
   (a', _) <- check a (C U)
   (b', _) <- check b (C U)
@@ -207,6 +214,7 @@ extractRealizer = Realizer . extract
     extract (f :@ a) = extract f :@ extract a
     extract (BinderEq a b p q) = C Dot
     extract (Funext f g h) = C Dot
+    extract (PairEq m n p q) = C Dot
     extract (UIP p q) = C Dot
     extract e = e
 

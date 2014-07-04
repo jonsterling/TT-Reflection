@@ -125,11 +125,17 @@ instance Pretty (Tm String) where
         vwe <- pretty (e /// (V v, V w))
         pure $ brackets (text v <> comma <> text w) <+> vwe
     p' <- pretty p
-    pure $ text "spread" <> parens (c' <+> e' <+> p')
+    pure $ text "spread" <> parens (c' <> semi <+> e' <> semi <+> p')
   pretty (Proj i p) = do
     let i' = text $ if i then "₁" else "₂"
     p' <- pretty p
     pure $ text "π" <> i' <> parens p'
+  pretty (PairEq m n p q) = do
+    m' <- pretty m
+    n' <- pretty n
+    p' <- pretty p
+    q' <- pretty q
+    pure $ text "pairEq" <> parens (m' <> semi <+> n' <> semi <+> p' <> semi <+> q')
 
 instance Pretty String where
   pretty = return . text
