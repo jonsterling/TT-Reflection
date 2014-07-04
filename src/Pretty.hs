@@ -54,10 +54,6 @@ instance Pretty (Tm String) where
     a' <- pretty a
     s' <- pretty s
     pure . parens $ a' <+> colon <+> s'
-  pretty (Pair a b) = do
-    a' <- pretty a
-    b' <- pretty b
-    pure $ text "〈" <+> a' <+> comma <+> b' <+> text "〉"
   pretty (B b s e) = do
     b' <- pretty b
     s' <- pretty s
@@ -65,10 +61,20 @@ instance Pretty (Tm String) where
       x  <- var
       e' <- pretty (e // V x)
       pure $ b' <> brackets (text x <> colon <> s') <+> e'
+  pretty (Pair m n) = scope $ do
+    m' <- pretty m
+    n' <- pretty n
+    pure $ text "⟨" <> m' <> comma <+> n' <> text "⟩"
   pretty (Lam e) = scope $ do
     x  <- var
     e' <- pretty $ e // V x
     pure $ text "λ" <> brackets (text x) <+> e'
+  pretty (Let s e) = do
+    s' <- pretty s
+    scope $ do
+      x <- var
+      e' <- pretty (e // V x)
+      pure $ text "let" <+> text x <+> text "=" <+> s' <+> text "in" <+> e'
   pretty (Reflect a b) = do
     a' <- pretty a
     b' <- pretty b
@@ -107,7 +113,23 @@ instance Pretty (Tm String) where
     b' <- pretty b
     pure $ text "boolElim" <> parens (xc <> semi <+> m' <> semi <+> n' <> semi <+> b')
   pretty (f :@ a) = (<+>) <$> pretty f <*> pretty a
-  pretty e = error $ "Welp: " ++ show e
+  pretty (Spread c e p) = do
+    c' <- scope $ do
+      u <- var
+      uc <- pretty (c // V u)
+      pure $ brackets (text u) <+> uc
+    e' <- scope $ do
+      v <- var
+      scope $ do
+        w <- var
+        vwe <- pretty (e /// (V v, V w))
+        pure $ brackets (text v <> comma <> text w) <+> vwe
+    p' <- pretty p
+    pure $ text "spread" <> parens (c' <+> e' <+> p')
+  pretty (Proj i p) = do
+    let i' = text $ if i then "₁" else "₂"
+    p' <- pretty p
+    pure $ text "π" <> i' <> parens p'
 
 instance Pretty String where
   pretty = return . text

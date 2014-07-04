@@ -45,7 +45,7 @@ data Tm a
   | Proj Bool (Tm a)
   | BoolElim (B.Scope () Tm a) (Tm a) (Tm a) (Tm a)
   | Lam (B.Scope () Tm a)
-  | Let (Tm a, Tm a) (B.Scope () Tm a)
+  | Let (Tm a) (B.Scope () Tm a)
   | Tm a :@ Tm a
   | BinderEq (Tm a) (Tm a) (Tm a) (B.Scope () Tm a)
   | Funext (Tm a) (Tm a) (B.Scope () Tm a)
@@ -70,7 +70,7 @@ instance Monad Tm where
   B bnd s t >>= f = B bnd (s >>= f) (t B.>>>= f)
   Id s a b >>= f = Id (s >>= f) (a >>= f) (b >>= f)
   Reflect p e >>= f = Reflect (p >>= f) (e >>= f)
-  Let (s, sty) e >>= f = Let (s >>= f, sty >>= f) (e B.>>>= f)
+  Let s e >>= f = Let (s >>= f) (e B.>>>= f)
   Lam e >>= f = Lam (e B.>>>= f)
   (x :@ y) >>= f = (x >>= f) :@ (y >>= f)
   Spread c e p >>= f = Spread (c B.>>>= f) (e B.>>>= f) (p >>= f)

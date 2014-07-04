@@ -203,7 +203,7 @@ extractRealizer = Realizer . extract
     extract (Proj b p) = Proj b (extract p)
     extract (BoolElim c m n b) = BoolElim ("x" \\ (extract (c // V "x"))) (extract m) (extract n) (extract b)
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
-    extract (Let (a,s) e) = Let (extract a, extract s) ("x" \\ extract (e // V "x"))
+    extract (Let a e) = extract (e // a)
     extract (f :@ a) = extract f :@ extract a
     extract (BinderEq a b p q) = C Dot
     extract (Funext f g h) = C Dot
@@ -242,7 +242,7 @@ unAnn (Ann u s) = u
 unAnn u = u
 
 whnf :: Tm -> Checking Tm
-whnf (Let (s, _) e) =
+whnf (Let s e) =
   whnf $ e // s
 whnf (f :@ a) = do
   a' <- whnf a

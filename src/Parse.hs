@@ -78,6 +78,16 @@ parseLambdaExpr :: (Monad m, TokenParsing m) => m (Tm String)
 parseLambdaExpr = Lam
               <$> (parseLambda *> whiteSpace *> parseBoundExpr)
 
+parseLet :: (Monad m, TokenParsing m) => m (Tm String)
+parseLet = do
+  reserved "let"
+  x <- identifier
+  reserved "="
+  s <- parseTm
+  reserved "in"
+  e <- parseTm
+  return $ Let s (x \\ e)
+
 parseBinderExpr :: (Monad m, TokenParsing m) => m (Tm String)
 parseBinderExpr = uncurry . B
               <$> parseBinder
@@ -190,6 +200,7 @@ parseTm = optionalParens parseTm'
            <|> (parseProj1 <?> "pi1 expr")
            <|> (parseProj2 <?> "pi2 expr")
            <|> (parsePair <?> "pair expr")
+           <|> (parseLet <?> "let expr")
            <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")
