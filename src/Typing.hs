@@ -186,6 +186,15 @@ check' (Pair a b) (B Sg sg tau) = do
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
+check' (PairEq m n p q) (Id a m' n') = do
+  (s, t) <- ensureSg a
+  _ <- check m a
+  _ <- check n a
+  equate m m'
+  equate n n'
+  (p', _) <- check p $ Id s (Proj True m) (Proj True n)
+  (q', _) <- addEquation (Proj True m, Proj True n) $ check q $ Id (t // Proj True m) (Proj False m) (Proj False n)
+  return $ (PairEq m n p q, Id a m n)
 check' t ty = do
   tty <- infer t
   equate ty tty

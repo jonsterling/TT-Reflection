@@ -207,6 +207,7 @@ parseTm = optionalParens parseTm'
            <|> (parseIdentityType <?> "identity type")
            <|> (parseBinderEq <?> "binder equality expr")
            <|> (parseFunext <?> "function extensionality expr")
+           <|> (parsePairEq <?> "pairEq expr")
            <|> (parseBoolElim <?> "bool elimination")
            <|> (parseUIP <?> "UIP expr")
            <|> (parseSpread <?> "spread expr")
