@@ -113,6 +113,14 @@ infer' (BoolElim c m n b) = do
   _ <- check n (c // C Ff)
   (b', _) <- check b (C Two)
   return $ ("x" \\ c') // b'
+infer' (Spread c e p) = do
+  ty <- infer p
+  (s, t) <- ensureSg ty
+  (c', _) <- extendCtx "u" ty $ check (c // V "u") (C U)
+  (e', _) <- extendCtx "v" s
+             . extendCtx "w" (t // V "v")
+             $ check (e /// (V "v", V "w")) (c // (Pair (V "v") (V "w")))
+  return $ c // p
 infer' (f :@ x) = do
   ty <- infer f
   (s, t)  <- ensurePi ty
@@ -203,6 +211,10 @@ ensureIdentity ty = do
 ensurePi :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
 ensurePi (B Pi s t) = return (s, t)
 ensurePi _ = err "Expected pi type"
+
+ensureSg :: Ty -> Checking (Ty, B.Scope () Syn.Tm Name)
+ensureSg (B Sg s t) = return (s, t)
+ensureSg _ = err "Expected sigma type"
 
 assert :: Bool -> String -> Checking ()
 assert p = unless p . err
