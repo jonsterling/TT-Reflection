@@ -113,6 +113,11 @@ infer' (BoolElim c m n b) = do
   _ <- check n (c // C Ff)
   (b', _) <- check b (C Two)
   return $ ("x" \\ c') // b'
+infer' (f :@ x) = do
+  ty <- infer f
+  (s, t)  <- ensurePi ty
+  (x', _) <- check x s
+  return $ t // x'
 infer' (Funext f g h) = do
   ty <- infer f
   (s, t) <- ensurePi ty
