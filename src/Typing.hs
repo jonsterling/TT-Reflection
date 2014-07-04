@@ -151,6 +151,10 @@ check' (C Dot) (Id s a b) = do
   (b', _) <- check b s'
   equate a' b'
   return (C Dot, Id s' a' b')
+check' (Pair a b) (B Sg sg tau) = do
+  (a', _) <- check a sg
+  (b', _) <- check b $ tau // a'
+  return (Pair a' b', B Sg sg tau)
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
