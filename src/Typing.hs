@@ -310,12 +310,12 @@ whnf (Proj False p) = do
     _ -> return $ Proj False p'
 whnf (BoolElim c m n b) = do
   c' <- (\\) "x" <$> whnf (c // V "x")
-  b' <- whnf b
+  b' <- whnf b >>= unref
   m' <- whnf m
   n' <- whnf n
-  case b' of
-    C Tt -> return m'
-    C Ff -> return n'
-    _ -> return $ BoolElim c' m' n' b'
+  return $ case b' of
+    C Tt -> m'
+    C Ff -> n'
+    _ -> BoolElim c' m' n' b'
 whnf e = return e
 
