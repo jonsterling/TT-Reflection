@@ -157,6 +157,12 @@ parseExtEq = do
   p <- parens parseTm
   return $ ExtEq p
 
+parseHole :: (Monad m, TokenParsing m) => m (Tm String)
+parseHole = braces $ do
+  char '?'
+  n <- identifier
+  return $ Hole n Nothing
+
 parseTm :: (Monad m, TokenParsing m) => m (Tm String)
 parseTm = optionalParens parseTm'
   where
@@ -172,6 +178,7 @@ parseTm = optionalParens parseTm'
            <|> (parseProj2 <?> "pi2 expr")
            <|> (parsePair <?> "pair expr")
            <|> (parseLet <?> "let expr")
+           <|> (parseHole <?> "hole")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")
 

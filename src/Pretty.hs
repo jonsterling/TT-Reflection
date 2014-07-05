@@ -50,6 +50,11 @@ instance Pretty Constant where
 instance Pretty (Tm String) where
   pretty (V a) = pretty a
   pretty (C c) = pretty c
+  pretty (Hole n mty) = do
+    ty' <- case mty of
+      Just ty -> pretty ty
+      Nothing -> pure $ text "?"
+    pure . braces $ text ("?" ++ n) <+> text ":" <+> ty'
   pretty (B b s e) = do
     b' <- pretty b
     s' <- pretty s

@@ -91,10 +91,16 @@ lookupEquation (a, b) = do
 -- over and over again. It would be a good idea to fix that.
 --
 infer' :: Tm -> Checking Ty
-infer' (V x) = lookupTy x <|> fst <$> lookupDecl x
-infer' (C t) | t  `elem` [U, Zero, One, Two] = return $ C U
-infer' (C Dot) = return $ C One
-infer' (C x) | x `elem` [Tt, Ff] = return $ C Two
+infer' (V x) =
+  lookupTy x <|> fst <$> lookupDecl x
+infer' (C t) | t  `elem` [U, Zero, One, Two] =
+  return $ C U
+infer' (C Dot) =
+  return $ C One
+infer' (C x) | x `elem` [Tt, Ff] =
+  return $ C Two
+infer' (Hole n (Just ty)) =
+  return ty
 infer' (B _ sg tau) = do
   _ <- check sg $ C U
   _ <- extendCtx "x" sg $ check (tau // V "x") $ C U
@@ -138,6 +144,13 @@ check' (V x) ty = do
   ty' <- lookupTy x <|> fst <$> lookupDecl x
   equate (C U) ty ty'
   return (V x, ty)
+check' h@(Hole n mty) ty = do
+  case mty of
+    Just ty' -> do
+      equate (C U) ty' ty
+      return (h, ty)
+    Nothing ->
+      return $ (Hole n (Just ty), ty)
 check' (Reflect p e) rho = do
   t <- infer p
   (s, a, b) <- ensureIdentity t
@@ -152,8 +165,11 @@ check' (C Dot) (Id s a b) = do
   return (C Dot, Id s' a' b')
 check' (ExtEq p) (Id s a b) = do
   ev <- extensionalEq s a b
-  (p', _) <- check p ev
-  return (ExtEq p', Id s a b)
+  if (Id s a b == ev)
+    then err "welp"
+    else do
+      (p', _) <- check p ev
+      return (ExtEq p', Id s a b)
 check' (Pair a b) (B Sg sg tau) = do
   (a', _) <- check a sg
   (b', _) <- check b $ tau // a'
@@ -215,7 +231,7 @@ equate a m n = do
 trivialExtensionalEq :: Ty -> Tm -> Tm -> Checking ()
 trivialExtensionalEq a m n = do
   ev <- extensionalEq a m n
-  _  <- check (ExtEq (C Dot)) ev
+  _  <- traceShow (a,m,n) $ check (ExtEq (C Dot)) ev
   return ()
 
 reflectEquality :: Tm -> Tm -> Checking ()
@@ -240,6 +256,10 @@ structuralEq m n = do
   structuralEq' m' n'
 
 structuralEq' :: Tm -> Tm -> Checking ()
+structuralEq' (Hole _ _) _ =
+  return ()
+structuralEq' _ (Hole _ _) =
+  return ()
 structuralEq' (C c) (C c') =
   assert (c == c') "Constants are not equal"
 structuralEq' (V x) (V x') =
@@ -250,7 +270,25 @@ structuralEq' (f :@ x) (g :@ y) = do
 structuralEq' e e' =
   assert (e == e') "Terms not structurally equal"
 
+propAnd :: Ty -> Ty -> Ty
+propAnd (C One) p = p
+propAnd p (C One) = p
+propAnd (C Zero) p = C Zero
+propAnd p (C Zero) = C Zero
+propAnd p q = B Sg p ("x" \\ q)
+
+propOr :: Ty -> Ty -> Ty
+propOr (C One) p = C One
+propOr p (C One) = C One
+propOr p (C Zero) = p
+propOr (C Zero) p = p
+propOr p q = B Sg (C Two) ("x" \\ BoolElim ("b" \\ C U) p q (V "x"))
+
 extensionalEq' :: Ty -> Tm -> Tm -> Checking Ty
+extensionalEq' _ (Hole _ _) _ =
+  return $ C One
+extensionalEq' _ _ (Hole _ _) =
+  return $ C One
 extensionalEq' (C Zero) m n =
   return $ C One
 extensionalEq' (C One) m n =
@@ -263,7 +301,7 @@ extensionalEq' (C Two) (C x) (C x') =
 extensionalEq' (B Sg s t) m n = do
   fst <- extensionalEq s (Proj True m) (Proj True n)
   snd <- extensionalEq (t // Proj True m) (Proj False m) (Proj False n)
-  return $ B Sg fst ("x" \\ snd)
+  return $ fst `propAnd` snd
 extensionalEq' (B Pi s t) f g = do
   h <- extendCtx "x" s $ extensionalEq (t // V "x") (f :@ V "x") (g :@ V "x")
   return $ B Pi s ("x" \\ h)
