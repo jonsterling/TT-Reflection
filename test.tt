@@ -29,10 +29,10 @@
 ~> reflect boolIdEqualsBoolNotNot in <>
 
 |- uipExample in Id(Id(pi[x:`2]`2; boolId; boolNotNot); boolIdEqualsBoolNotNot; reflectedVersion)
-~> uip(boolIdEqualsBoolNotNot; reflectedVersion)
+~> <>
 
 |- pairExample in sg[x:U]x
 ~> < `2, tt >
 
 |- pairEqExample in Id(sg[x:U]x; <`2, tt>; <`2, tt>)
-~> pairEq(<`2, tt>; <`2, tt>; <>; <>)
+~> <>

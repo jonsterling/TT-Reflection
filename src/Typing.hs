@@ -26,6 +26,7 @@ import           Control.Monad
 import           Control.Monad.Reader
 import           Data.Monoid
 import           Data.Traversable
+import Debug.Trace
 
 type Name = String
 type Tm = Syn.Tm Name
@@ -151,17 +152,12 @@ infer' (BinderEq a@(B Pi s t) b@(B Pi s' t') p q) = do
   (p', _) <- check p (Id (C U) s s')
   (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
   return $ Id (C U) a' b'
-infer' (UIP p q) = do
-  ty <- infer p
-  _  <- ensureIdentity ty
-  _  <- check q ty
-  return $ Id ty p q
 infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Ty -> Checking (Tm, Ty)
 check' (V x) ty = do
   ty' <- lookupTy x <|> fst <$> lookupDecl x
-  equate ty ty'
+  equate (C U) ty ty'
   return (V x, ty)
 check' (Reflect p e) rho = do
   t <- infer p
@@ -173,7 +169,7 @@ check' (C Dot) (Id s a b) = do
   (s', _) <- check s $ C U
   (a', _) <- check a s'
   (b', _) <- check b s'
-  equate a' b'
+  equate s a' b'
   return (C Dot, Id s' a' b')
 check' (Pair a b) (B Sg sg tau) = do
   (a', _) <- check a sg
@@ -186,14 +182,14 @@ check' (PairEq m n p q) (Id a m' n') = do
   (s, t) <- ensureSg a
   _ <- check m a
   _ <- check n a
-  equate m m'
-  equate n n'
+  equate a m m'
+  equate a n n'
   (p', _) <- check p $ Id s (Proj True m) (Proj True n)
   (q', _) <- addEquation (Proj True m, Proj True n) $ check q $ Id (t // Proj True m) (Proj False m) (Proj False n)
   return $ (PairEq m n p q, Id a m n)
 check' t ty = do
   tty <- infer t
-  equate ty tty
+  equate (C U) ty tty
   return (t, tty)
 
 checkDecls :: [Decl] -> Checking [Decl]
@@ -219,7 +215,6 @@ extractRealizer = Realizer . extract
     extract (BinderEq a b p q) = C Dot
     extract (Funext f g h) = C Dot
     extract (PairEq m n p q) = C Dot
-    extract (UIP p q) = C Dot
     extract e = e
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
@@ -240,15 +235,64 @@ ensureSg _ = err "Expected sigma type"
 assert :: Bool -> String -> Checking ()
 assert p = unless p . err
 
-equate :: Tm -> Tm -> Checking ()
-equate e1 e2 =
-  unless (e1 == e2) $ do
-    e1' <- whnf e1 >>= unref
-    e2' <- whnf e2 >>= unref
-    unless (e1' == e2') $ do
-      reflected <- lookupEquation (e1',e2') <|> lookupEquation (e2', e1')
-      unless reflected $
-        err $ "Not equal: " ++ show e1 ++ "            and             " ++ show e2
+
+equate :: Ty -> Tm -> Tm -> Checking ()
+equate a m n = do
+  a' <- whnf a >>= unref
+  structuralEq m n <|> trivialExtensionalEq a m n <|> reflectEquality m n
+
+trivialExtensionalEq :: Ty -> Tm -> Tm -> Checking ()
+trivialExtensionalEq a m n = () <$ (extensionalEq a m n >>= check (C Dot))
+
+reflectEquality :: Tm -> Tm -> Checking ()
+reflectEquality e1 e2 = do
+  e1' <- whnf e1 >>= unref
+  e2' <- whnf e2 >>= unref
+  unless (e1' == e2') $ do
+    reflected <- lookupEquation (e1', e2') <|> lookupEquation (e2', e1')
+    eqs <- asks Ctx.equations
+    unless reflected $
+      err $ "Not equal: " ++ show e1 ++ "            and             " ++ show e2
+
+extensionalEq :: Ty -> Tm -> Tm -> Checking Ty
+extensionalEq a m n = do
+  (m', _) <- check m a
+  (n', _) <- check n a
+  a' <- whnf a >>= unref
+  extensionalEq' a' m' n'
+
+structuralEq :: Tm -> Tm -> Checking ()
+structuralEq m n = do
+  m' <- whnf m >>= unref
+  n' <- whnf n >>= unref
+  structuralEq' m' n'
+
+structuralEq' :: Tm -> Tm -> Checking ()
+structuralEq' (C c) (C c') =
+  assert (c == c') "Constants are not equal"
+structuralEq' (V x) (V x') =
+  assert (x == x') "Variables are not equal"
+structuralEq' (f :@ x) (g :@ y) = do
+  structuralEq f g
+  structuralEq x y
+structuralEq' e e' =
+  assert (e == e') "Terms not structurally equal"
+
+extensionalEq' :: Ty -> Tm -> Tm -> Checking Ty
+extensionalEq' (C One) m n =
+  return $ C One
+extensionalEq' (B Sg s t) m n = do
+  fst <- extensionalEq s (Proj True m) (Proj True n)
+  snd <- extensionalEq (t // Proj True m) (Proj False m) (Proj False n)
+  return $ B Sg fst ("x" \\ snd)
+extensionalEq' (B Pi s t) f g = do
+  h <- extendCtx "x" s $ extensionalEq (t // V "x") (f :@ V "x") (g :@ V "x")
+  return $ B Pi s ("x" \\ h)
+extensionalEq' (Id a m n) p q =
+  return $ C One
+extensionalEq' a m n =
+  err $ "extensionalEq' applied to non-type " ++ show a
+
 
 unref :: Tm -> Checking Tm
 unref (V x) = do
