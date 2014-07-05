@@ -35,7 +35,6 @@ data Constant
 
 data Tm a
   = V a
-  | Ann (Tm a) (Tm a)
   | C Constant
   | Pair (Tm a) (Tm a)
   | B Binder (Tm a) (B.Scope () Tm a)
@@ -66,7 +65,6 @@ instance Monad Tm where
   return = V
   V a >>= f = f a
   C a >>= f = C a
-  Ann u t >>= f = Ann (u >>= f) (t >>= f)
   Pair a b >>= f = Pair (a >>= f) (b >>= f)
   B bnd s t >>= f = B bnd (s >>= f) (t B.>>>= f)
   Id s a b >>= f = Id (s >>= f) (a >>= f) (b >>= f)

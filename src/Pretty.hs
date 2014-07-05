@@ -50,10 +50,6 @@ instance Pretty Constant where
 instance Pretty (Tm String) where
   pretty (V a) = pretty a
   pretty (C c) = pretty c
-  pretty (Ann a s) = do
-    a' <- pretty a
-    s' <- pretty s
-    pure . parens $ a' <+> colon <+> s'
   pretty (B b s e) = do
     b' <- pretty b
     s' <- pretty s

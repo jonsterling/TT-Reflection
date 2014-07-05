@@ -61,10 +61,10 @@ extendSignature x (a,s) = local $ Ctx.appendDecl (x, a, s)
 
 addEquation :: (Tm,Tm) -> Checking a -> Checking a
 addEquation (a,b) c = do
-  a' <- whnf a
-  b' <- whnf b
+  a' <- whnf a >>= unref
+  b' <- whnf b >>= unref
   flip local c $
-    Ctx.appendEquation (unAnn a', unAnn b')
+    Ctx.appendEquation (a', b')
 
 lookupTy :: Name -> Checking Ty
 lookupTy x = do
@@ -84,17 +84,13 @@ lookupEquation :: (Tm, Tm) -> Checking Bool
 lookupEquation (a, b) = do
   a' <- whnf a
   b' <- whnf b
-  Set.member (unAnn a', unAnn b') <$> asks Ctx.equations
+  Set.member (a', b') <$> asks Ctx.equations
 
 -- This is a very inefficient type checker! It computes the whnf of terms
 -- over and over again. It would be a good idea to fix that.
 --
 infer' :: Tm -> Checking Ty
 infer' (V x) = lookupTy x <|> fst <$> lookupDecl x
-infer' (Ann a s) = do
-  (s', _) <- check s $ C U
-  (a', _) <- check a s'
-  return s'
 infer' (C t) | t  `elem` [U, Zero, One, Two] = return $ C U
 infer' (C Dot) = return $ C One
 infer' (C x) | x `elem` [Tt, Ff] = return $ C Two
@@ -210,7 +206,6 @@ checkDecls ((n, ty, tm) : ds) = do
 extractRealizer :: Tm -> Realizer
 extractRealizer = Realizer . extract
   where
-    extract (Ann a t) = extract a
     extract (Pair a b) = Pair (extract a) (extract b)
     extract (B b s t) = B b (extract s) $ "x" \\ extract (t // V "x")
     extract (Id s a b) = Id (extract s) (extract a) (extract b)
@@ -246,40 +241,45 @@ assert :: Bool -> String -> Checking ()
 assert p = unless p . err
 
 equate :: Tm -> Tm -> Checking ()
-equate (Ann u t) e = equate u e
-equate e (Ann u t) = equate e u
 equate e1 e2 =
   unless (e1 == e2) $ do
-    reflected <- lookupEquation (e1,e2) <|> lookupEquation (e2, e1)
-    unless reflected $
-      err $ "Not equal: " ++ show e1 ++ "            and             " ++ show e2
+    e1' <- whnf e1 >>= unref
+    e2' <- whnf e2 >>= unref
+    unless (e1' == e2') $ do
+      reflected <- lookupEquation (e1',e2') <|> lookupEquation (e2', e1')
+      unless reflected $
+        err $ "Not equal: " ++ show e1 ++ "            and             " ++ show e2
 
-unAnn :: Tm -> Tm
-unAnn (Ann u s) = u
-unAnn u = u
+unref :: Tm -> Checking Tm
+unref (V x) = do
+  sig <- asks Ctx.signature
+  case Map.lookup x sig of
+    Just (_, tm) -> unref tm
+    Nothing -> return $ V x
+unref e = return e
 
 whnf :: Tm -> Checking Tm
 whnf (Let s e) =
   whnf $ e // s
 whnf (f :@ a) = do
+  f' <- whnf f >>= unref
   a' <- whnf a
-  f' <- whnf f
-  case unAnn f' of
+  case f' of
     Lam e -> whnf $ e // a'
     _ -> return $ f' :@ a'
 whnf (Spread c e p) = do
-  p' <- whnf p
-  case unAnn p' of
+  p' <- whnf p >>= unref
+  case p' of
     Pair a b -> whnf $ e /// (a,b)
     _ -> return $ Spread c e p'
 whnf (Proj True p) = do
-  p' <- whnf p
-  case unAnn p' of
+  p' <- whnf p >>= unref
+  case p' of
     Pair a b -> whnf a
     _ -> return $ Proj True p'
 whnf (Proj False p) = do
-  p' <- whnf p
-  case unAnn p' of
+  p' <- whnf p >>= unref
+  case p' of
     Pair a b -> whnf b
     _ -> return $ Proj False p'
 whnf (BoolElim c m n b) = do
@@ -291,11 +291,5 @@ whnf (BoolElim c m n b) = do
     C Tt -> return m'
     C Ff -> return n'
     _ -> return $ BoolElim c' m' n' b'
-whnf (V x) = do
-  rho <- asks Ctx.signature
-  return $
-    case Map.lookup x rho of
-      Just (ty, tm) -> Ann tm ty
-      Nothing -> V x
 whnf e = return e
 

@@ -215,7 +215,6 @@ parseTm = optionalParens parseTm'
            <|> (parseProj2 <?> "pi2 expr")
            <|> (parsePair <?> "pair expr")
            <|> (parseLet <?> "let expr")
-           <|> (try (parens $ Ann <$> (parseTm <* colon) <*> parseTm) <?> "annotation")
            <|> (try (parens parseApp) <?> "application")
            <|> (V <$> identifier <?> "variable")
 
