@@ -10,9 +10,6 @@
 |- trivialTest in Id(`1; <>; <>)
 ~> <>
 
-|- binderEqTest in Id(U; pi[x:`1]`1; pi[x:`1]`1)
-~> binderEq(pi[x:`1]`1; pi[x:`1]`1; <>; [x] <>)
-
 |- boolId in pi[x:`2]`2
 ~> lam[x] boolElim([_]`2; tt; ff; x)
 
@@ -23,13 +20,13 @@
 ~> lam[x] (boolNot (boolNot x))
 
 |- boolIdEqualsBoolNotNot in Id(pi[x:`2]`2; boolId; boolNotNot)
-~> funext(boolId; boolNotNot; [u] boolElim([b] Id(`2; (boolId b); (boolNotNot b)); <>; <>; u))
+~> extEq(lam[u] boolElim([b] Id(`2; (boolId b); (boolNotNot b)); <>; <>; u))
 
 |- reflectedVersion in Id(pi[x:`2]`2; boolId; boolNotNot)
 ~> reflect boolIdEqualsBoolNotNot in <>
 
 |- uipExample in Id(Id(pi[x:`2]`2; boolId; boolNotNot); boolIdEqualsBoolNotNot; reflectedVersion)
-~> <>
+~> extEq(<>)
 
 |- pairExample in sg[x:U]x
 ~> < `2, tt >

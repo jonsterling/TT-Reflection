@@ -80,21 +80,6 @@ instance Pretty (Tm String) where
     a' <- pretty a
     b' <- pretty b
     pure $ text "Id" <> parens (s' <> semi <+> a' <> semi <+> b')
-  pretty (BinderEq a b p q) = do
-    a' <- pretty a
-    b' <- pretty b
-    p' <- pretty p
-    scope $ do
-      x  <- var
-      q' <- pretty $ q // V x
-      pure $ text "binderEq" <> parens (a' <> semi <+> b' <> semi <+> p' <> semi <+> brackets (text x) <+> q')
-  pretty (Funext f g h) = do
-    f' <- pretty f
-    g' <- pretty g
-    scope $ do
-      x <- var
-      h' <- pretty $ h // V x
-      pure $ text "funext" <> parens (f' <> semi <+> g' <> semi <+> brackets (text x) <+> h')
   pretty (BoolElim c m n b) = do
     xc <- scope $ do
       x  <- var
@@ -122,12 +107,9 @@ instance Pretty (Tm String) where
     let i' = text $ if i then "₁" else "₂"
     p' <- pretty p
     pure $ text "π" <> i' <> parens p'
-  pretty (PairEq m n p q) = do
-    m' <- pretty m
-    n' <- pretty n
+  pretty (ExtEq p) = do
     p' <- pretty p
-    q' <- pretty q
-    pure $ text "pairEq" <> parens (m' <> semi <+> n' <> semi <+> p' <> semi <+> q')
+    pure $ text "extEq" <> parens p'
 
 instance Pretty String where
   pretty = return . text

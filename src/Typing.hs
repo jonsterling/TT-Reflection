@@ -131,27 +131,6 @@ infer' (f :@ x) = do
   (s, t)  <- ensurePi ty
   (x', _) <- check x s
   return $ t // x'
-infer' (Funext f g h) = do
-  ty <- infer f
-  (s, t) <- ensurePi ty
-  _ <- check g ty
-  extendCtx "x" s $ do
-    let x = V "x"
-    (h', _) <- check (h // x) $ Id (t // x) (f :@ x) (g :@ x)
-    return $ Id (B Pi s t) f g
-infer' (PairEq m n p q) = do
-  ty <- infer m
-  (s, t) <- ensureSg ty
-  (n', _) <- check n ty
-  (p', _) <- check p $ Id s (Proj True m) (Proj True n)
-  (q', _) <- addEquation (Proj True m, Proj True n) $ check q $ Id (t // Proj True m) (Proj False m) (Proj False n)
-  return $ Id ty m n
-infer' (BinderEq a@(B Pi s t) b@(B Pi s' t') p q) = do
-  (a', _) <- check a (C U)
-  (b', _) <- check b (C U)
-  (p', _) <- check p (Id (C U) s s')
-  (q', _) <- addEquation (s, s') $ check (q // V "x") $ Id (C U) (t // V "x") (t' // V "x")
-  return $ Id (C U) a' b'
 infer' e = err $ "Cannot infer type of " ++ show e
 
 check' :: Tm -> Ty -> Checking (Tm, Ty)
@@ -171,6 +150,10 @@ check' (C Dot) (Id s a b) = do
   (b', _) <- check b s'
   equate s a' b'
   return (C Dot, Id s' a' b')
+check' (ExtEq p) (Id s a b) = do
+  ev <- extensionalEq s a b
+  (p', _) <- check p ev
+  return (ExtEq p', Id s a b)
 check' (Pair a b) (B Sg sg tau) = do
   (a', _) <- check a sg
   (b', _) <- check b $ tau // a'
@@ -178,15 +161,6 @@ check' (Pair a b) (B Sg sg tau) = do
 check' (Lam e) (B Pi sg tau) = do
   (e', _) <- extendCtx "x" sg $ check (e // V "x") $ tau // V "x"
   return (Lam ("x" \\ e'), B Pi sg tau)
-check' (PairEq m n p q) (Id a m' n') = do
-  (s, t) <- ensureSg a
-  _ <- check m a
-  _ <- check n a
-  equate a m m'
-  equate a n n'
-  (p', _) <- check p $ Id s (Proj True m) (Proj True n)
-  (q', _) <- addEquation (Proj True m, Proj True n) $ check q $ Id (t // Proj True m) (Proj False m) (Proj False n)
-  return $ (PairEq m n p q, Id a m n)
 check' t ty = do
   tty <- infer t
   equate (C U) ty tty
@@ -212,9 +186,7 @@ extractRealizer = Realizer . extract
     extract (Lam e) = Lam ("x" \\ extract (e // V "x"))
     extract (Let a e) = extract (e // a)
     extract (f :@ a) = extract f :@ extract a
-    extract (BinderEq a b p q) = C Dot
-    extract (Funext f g h) = C Dot
-    extract (PairEq m n p q) = C Dot
+    extract (ExtEq p) = C Dot
     extract e = e
 
 ensureIdentity :: Ty -> Checking (Ty, Tm, Tm)
@@ -235,14 +207,16 @@ ensureSg _ = err "Expected sigma type"
 assert :: Bool -> String -> Checking ()
 assert p = unless p . err
 
-
 equate :: Ty -> Tm -> Tm -> Checking ()
 equate a m n = do
   a' <- whnf a >>= unref
   structuralEq m n <|> trivialExtensionalEq a m n <|> reflectEquality m n
 
 trivialExtensionalEq :: Ty -> Tm -> Tm -> Checking ()
-trivialExtensionalEq a m n = () <$ (extensionalEq a m n >>= check (C Dot))
+trivialExtensionalEq a m n = do
+  ev <- extensionalEq a m n
+  _  <- check (ExtEq (C Dot)) ev
+  return ()
 
 reflectEquality :: Tm -> Tm -> Checking ()
 reflectEquality e1 e2 = do
@@ -256,10 +230,8 @@ reflectEquality e1 e2 = do
 
 extensionalEq :: Ty -> Tm -> Tm -> Checking Ty
 extensionalEq a m n = do
-  (m', _) <- check m a
-  (n', _) <- check n a
   a' <- whnf a >>= unref
-  extensionalEq' a' m' n'
+  extensionalEq' a' m n
 
 structuralEq :: Tm -> Tm -> Checking ()
 structuralEq m n = do
@@ -279,8 +251,15 @@ structuralEq' e e' =
   assert (e == e') "Terms not structurally equal"
 
 extensionalEq' :: Ty -> Tm -> Tm -> Checking Ty
+extensionalEq' (C Zero) m n =
+  return $ C One
 extensionalEq' (C One) m n =
   return $ C One
+extensionalEq' (C Two) (C x) (C x') =
+  return $
+    if x == x'
+      then C One
+      else C Zero
 extensionalEq' (B Sg s t) m n = do
   fst <- extensionalEq s (Proj True m) (Proj True n)
   snd <- extensionalEq (t // Proj True m) (Proj False m) (Proj False n)
@@ -288,11 +267,14 @@ extensionalEq' (B Sg s t) m n = do
 extensionalEq' (B Pi s t) f g = do
   h <- extendCtx "x" s $ extensionalEq (t // V "x") (f :@ V "x") (g :@ V "x")
   return $ B Pi s ("x" \\ h)
+extensionalEq' (C U) (C x) (C x') = do
+  return $
+    if x == x'
+      then C One
+      else C Zero
 extensionalEq' (Id a m n) p q =
   return $ C One
-extensionalEq' a m n =
-  err $ "extensionalEq' applied to non-type " ++ show a
-
+extensionalEq' a m n = return $ Id a m n
 
 unref :: Tm -> Checking Tm
 unref (V x) = do

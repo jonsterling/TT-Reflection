@@ -109,30 +109,6 @@ parseIdentityType = do
     n <- parseTm
     return $ Id s m n
 
-parseBinderEq :: (Monad m, TokenParsing m) => m (Tm String)
-parseBinderEq = do
-  reserved "binderEq"
-  parens $ do
-    a <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    b <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    p <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    q <- parseBoundExpr
-    return $ BinderEq a b p q
-
-parseFunext :: (Monad m, TokenParsing m) => m (Tm String)
-parseFunext = do
-  reserved "funext"
-  parens $ do
-    f <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    g <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    h <- parseBoundExpr
-    return $ Funext f g h
-
 parseBoolElim :: (Monad m, TokenParsing m) => m (Tm String)
 parseBoolElim = do
   reserved "boolElim"
@@ -175,18 +151,11 @@ parseProj1 = (reserved "π₁" <|> reserved "pi1") *> (Proj True <$> parens pars
 parseProj2 :: (Monad m, TokenParsing m) => m (Tm String)
 parseProj2 = (reserved "π₂" <|> reserved "pi2") *> (Proj False <$> parens parseTm)
 
-parsePairEq :: (Monad m, TokenParsing m) => m (Tm String)
-parsePairEq = do
-  reserved "pairEq"
-  parens $ do
-    m <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    n <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    p <- parseTm
-    whiteSpace; semicolon; whiteSpace
-    q <- parseTm
-    return $ PairEq m n p q
+parseExtEq :: (Monad m, TokenParsing m) => m (Tm String)
+parseExtEq = do
+  reserved "extEq"
+  p <- parens parseTm
+  return $ ExtEq p
 
 parseTm :: (Monad m, TokenParsing m) => m (Tm String)
 parseTm = optionalParens parseTm'
@@ -196,9 +165,7 @@ parseTm = optionalParens parseTm'
            <|> (parseBinderExpr <?> "binder expr")
            <|> (parseReflection <?> "reflection scope")
            <|> (parseIdentityType <?> "identity type")
-           <|> (parseBinderEq <?> "binder equality expr")
-           <|> (parseFunext <?> "function extensionality expr")
-           <|> (parsePairEq <?> "pairEq expr")
+           <|> (parseExtEq <?> "extEq expr")
            <|> (parseBoolElim <?> "bool elimination")
            <|> (parseSpread <?> "spread expr")
            <|> (parseProj1 <?> "pi1 expr")

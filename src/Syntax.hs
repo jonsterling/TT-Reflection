@@ -46,9 +46,7 @@ data Tm a
   | Lam (B.Scope () Tm a)
   | Let (Tm a) (B.Scope () Tm a)
   | Tm a :@ Tm a
-  | BinderEq (Tm a) (Tm a) (Tm a) (B.Scope () Tm a)
-  | Funext (Tm a) (Tm a) (B.Scope () Tm a)
-  | PairEq (Tm a) (Tm a) (Tm a) (Tm a)
+  | ExtEq (Tm a)
   deriving (Eq,Ord,Show,Read,Functor,Foldable,Traversable)
 
 type Ty a = Tm a
@@ -74,9 +72,7 @@ instance Monad Tm where
   Spread c e p >>= f = Spread (c B.>>>= f) (e B.>>>= f) (p >>= f)
   Proj b p >>= f = Proj b (p >>= f)
   BoolElim c m n b >>= f = BoolElim (c B.>>>= f) (m >>= f) (n >>= f) (b >>= f)
-  BinderEq a b p q >>= f = BinderEq (a >>= f) (b >>= f) (p >>= f) (q B.>>>= f)
-  Funext m n h >>= f = Funext (m >>= f) (n >>= f) (h B.>>>= f)
-  PairEq m n p q >>= f = PairEq (m >>= f) (n >>= f) (p >>= f) (q >>= f)
+  ExtEq p >>= f = ExtEq (p >>= f)
 
 abstract2 :: (Monad f, Eq a) => (a,a) -> f a -> B.Scope Bool f a
 abstract2 (x,y) =
