@@ -16,6 +16,7 @@ intersection : quantifier.
 union : quantifier.
 
 univ : tm.
+void : tm.
 unit : tm.
 bool : tm.
 eq : tm -> tm -> tm -> tm.
@@ -61,6 +62,8 @@ is-true/lookup : is-true R P
 %                 <- P ⇓ P′.
 
 inf/univ : inf R univ univ.
+inf/void : inf R void univ.
+inf/unit : inf R unit univ.
 inf/ax : inf R ax unit.
 inf/true : inf R true bool.
 inf/false : inf R false bool.
@@ -104,6 +107,8 @@ chk/eval/ty : chk R M A
                <- A ⇓ A′.
 
 can/univ : can univ.
+can/void : can void.
+can/unit : can unit.
 can/ax : can ax.
 can/true : can true.
 can/false : can false.
@@ -132,7 +137,14 @@ eval/app : M @ N ⇓ O
             <- M ⇓ λ E
             <- E N ⇓ O.
 
-eval/eq/unit : ax ∈ unit ⇓ unit.
+eval/eq/unit : (eq A M N) ⇓ unit
+                <- N ⇓ ax
+                <- M ⇓ ax
+                <- A ⇓ unit.
+eval/eq : (eq A M N) ⇓ (Eq A′ M′ N′)
+           <- N ⇓ N′
+           <- M ⇓ M′
+           <- A ⇓ A′.
 
 %solve _ : chk nil (λ[A] λ[x] x) (Π univ [A] Π A [x] A).
 test2 : chk nil ax unit = chk/inf inf/ax.
@@ -143,5 +155,26 @@ test2 : chk nil ax unit = chk/inf inf/ax.
 test3
    : chk nil (reflect (Π unit [x] ax ∈ unit) (λ[x] ax) ax) (quant intersection unit [x] unit)
       = chk/reflect
-         (chk/lam [_] [_] (chk/eval/ty eval/eq/unit (chk/inf inf/ax)))
+         (chk/lam [_] [_]
+            (chk/eval/ty
+               (eval/eq/unit
+                  (eval/can can/unit)
+                  (eval/can can/ax)
+                  (eval/can can/ax))
+               (chk/inf inf/ax)))
          (chk/intersection (is-true/lookup lookup/hit)).
+
+so = bool-elim ([_] univ) unit void.
+
+test4
+   : chk nil (reflect (Σ bool [x] (ax ∈ so x)) (pair true ax) ax) (quant union bool so)
+      = chk/reflect
+         (chk/pair
+            (chk/inf inf/true)
+            (chk/eval/ty
+               (eval/eq/unit
+                  eval/bool-elim/true
+                  (eval/can can/ax)
+                  (eval/can can/ax))
+               (chk/inf inf/ax)))
+         (chk/union (is-true/lookup lookup/hit)).
