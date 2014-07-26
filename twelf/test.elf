@@ -1,15 +1,29 @@
 tm : type.
 
+crypt : type.
+nil : crypt.
+cons : crypt -> tm -> crypt.
+
+lookup : crypt -> tm -> type.
+lookup/hit : lookup (cons R P) P.
+lookup/miss : lookup (cons G Q) P
+               <- lookup G P.
+
 quantifier : type.
 pi : quantifier.
 sigma : quantifier.
+intersection : quantifier.
+union : quantifier.
 
 univ : tm.
-
 unit : tm.
-tt : tm.
-
 bool : tm.
+eq : tm -> tm -> tm -> tm.
+
+%abbrev ∈ = [M] [A] eq A M M.
+%infix left 0 ∈.
+
+ax : tm.
 true : tm.
 false : tm.
 bool-elim : (tm -> tm) -> tm -> tm -> tm -> tm.
@@ -19,15 +33,16 @@ lam : (tm -> tm) -> tm.
 app : tm -> tm -> tm.
 
 pair : tm -> tm -> tm.
-split : (tm -> tm) -> (tm -> tm -> tm) -> tm -> tm.
+spread : (tm -> tm) -> (tm -> tm -> tm) -> tm -> tm.
 
-inf : tm -> tm -> type.
-chk : tm -> tm -> type.
+reflect : tm -> tm -> tm -> tm.
+
+inf : crypt -> tm -> tm -> type.
+chk : crypt -> tm -> tm -> type.
+is-true : crypt -> tm -> type.
 eval : tm -> tm -> type.
 can : tm -> type.
 
-%abbrev ⇒ = inf.
-%abbrev ⇐ = chk.
 %abbrev ⇓ = eval.
 %abbrev λ = lam.
 %abbrev @ = app.
@@ -35,47 +50,61 @@ can : tm -> type.
 %abbrev Π = quant pi.
 %abbrev Σ = quant sigma.
 
-%infix left 0 ⇒.
-%infix left 0 ⇐.
 %infix left 0 ⇓.
 %infix left 0 @.
 
-inf/univ : univ ⇒ univ.
-inf/tt : tt ⇒ unit.
-inf/true : true ⇒ bool.
-inf/false : false ⇒ bool.
+is-true/unit : is-true R unit.
+is-true/lookup : is-true R P
+                  <- lookup R P.
+% is-true/eval : is-true R P
+%                 <- is-true R P′
+%                 <- P ⇓ P′.
 
-inf/quant : quant Q A B ⇒ U
-             <- A ⇐ univ
-             <- ({x} x ⇐ A -> (B x) ⇐ univ).
-
-inf/bool-elim : bool-elim C M N X ⇒ C X
-                 <- X ⇒ bool
-                 <- ({x} x ⇐ bool -> C x ⇐ univ)
-                 <- N ⇐ C false
-                 <- M ⇐ C true.
-
-chk/lam : λ M ⇐ Π A B
-           <- ({x} x ⇐ A -> M x ⇐ B x).
-
-chk/app : M @ N ⇒ B N
-           <- M ⇒ Π A B
-           <- N ⇐ A.
-
-chk/pair : pair M N ⇐ Σ A B
-            <- N ⇐ B M
-            <- M ⇐ A.
-
-chk/split : split C M P ⇒ C P
-             <- P ⇒ Σ A B
-             <- ({u} u ⇐ Σ A B -> C u ⇐ univ)
-             <- ({v} {w} v ⇐ A -> w ⇐ B v -> M v w ⇐ C (pair v w)).
-
-chk/inf : M ⇐ A
-           <- M ⇒ A.
+inf/univ : inf R univ univ.
+inf/ax : inf R ax unit.
+inf/true : inf R true bool.
+inf/false : inf R false bool.
+inf/eq : inf R (eq A M N) univ.
+inf/quant : inf R (quant Q A B) univ
+             <- chk R A univ
+             <- ({x} chk R x A -> chk R (B x) univ).
+inf/bool-elim : inf R (bool-elim C M N X) (C X)
+                 <- chk R X bool
+                 <- ({x} chk R x bool -> chk R (C x) univ)
+                 <- chk R M (C false)
+                 <- chk R M (C true).
+inf/spread : inf R (spread C M P) (C P)
+              <- inf R P (Σ A B)
+              <- ({u} chk R u (Σ A B) -> chk R (C u) univ)
+              <- ({v} {w} chk R v A -> chk R w (B v) -> chk R (M v w) (C (pair v w))).
+inf/app : chk R (M @ N) (B N)
+           <- inf R M (Π A B)
+           <- chk R N A.
+chk/is-true : chk R M A
+               <- is-true R (M ∈ A).
+chk/inf : chk R M A
+           <- inf R M A.
+chk/lam : chk R (λ M) (Π A B)
+           <- ({x} chk R x A -> chk R (M x) (B x)).
+chk/pair : chk R (pair M N) (Σ A B)
+            <- chk R N (B M)
+            <- chk R M A.
+chk/reflect : chk R (reflect T M N) A
+               <- chk (cons R T) N A
+               <- chk R M T.
+chk/union : chk R M (quant union A B)
+             <- is-true R (Σ A [x] (M ∈ (B x))).
+chk/intersection : chk R M (quant intersection A B)
+                    <- is-true R (Π A [x] (M ∈ B x)).
+chk/eval/tm : chk R M A
+               <- chk R M′ A
+               <- M ⇓ M′.
+chk/eval/ty : chk R M A
+               <- chk R M A′
+               <- A ⇓ A′.
 
 can/univ : can univ.
-can/tt : can tt.
+can/ax : can ax.
 can/true : can true.
 can/false : can false.
 can/quant : can (quant Q A B)
@@ -86,7 +115,6 @@ can/lam : can (λ M)
 can/pair : can (pair M N)
             <- can M
             <- can N.
-
 eval/can : M ⇓ M
             <- can M.
 eval/bool-elim : (bool-elim C M N X) ⇓ (bool-elim C M N X′)
@@ -97,12 +125,23 @@ eval/bool-elim/false : (bool-elim _ _ N false) ⇓ N.
 eval/pair : (pair M N) ⇓ (pair M′ N′)
              <- N ⇓ N′
              <- M ⇓ M′.
-eval/split : (split _ M P) ⇓ M X Y
-              <- P ⇓ pair X Y.
+eval/spread : (spread _ M P) ⇓ M X Y
+               <- P ⇓ pair X Y.
 
 eval/app : M @ N ⇓ O
             <- M ⇓ λ E
             <- E N ⇓ O.
 
-%solve ex₁ : (λ [A] λ [x] x) ⇐ (Π univ [A] Π A [x] A).
+eval/eq/unit : ax ∈ unit ⇓ unit.
 
+%solve _ : chk nil (λ[A] λ[x] x) (Π univ [A] Π A [x] A).
+test2 : chk nil ax unit = chk/inf inf/ax.
+
+% (reflect (Π[x:unit]. ax ∈ ̱unit) by (λ[x] ax) in ax) 
+%   <= ∩[x:unit] unit.
+
+test3
+   : chk nil (reflect (Π unit [x] ax ∈ unit) (λ[x] ax) ax) (quant intersection unit [x] unit)
+      = chk/reflect
+         (chk/lam [_] [_] (chk/eval/ty eval/eq/unit (chk/inf inf/ax)))
+         (chk/intersection (is-true/lookup lookup/hit)).
