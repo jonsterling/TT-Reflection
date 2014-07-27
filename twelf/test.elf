@@ -83,6 +83,8 @@ inf/spread : inf R (spread C M P) (C P)
 inf/app : chk R (M @ N) (B N)
            <- inf R M (Π A B)
            <- chk R N A.
+
+
 chk/is-true : chk R M A
                <- is-true R (M ∈ A).
 chk/inf : chk R M A
@@ -109,6 +111,7 @@ chk/eval/ty : chk R M A
 can/univ : can univ.
 can/void : can void.
 can/unit : can unit.
+can/bool : can bool.
 can/ax : can ax.
 can/true : can true.
 can/false : can false.
@@ -120,6 +123,7 @@ can/lam : can (λ M)
 can/pair : can (pair M N)
             <- can M
             <- can N.
+
 eval/can : M ⇓ M
             <- can M.
 eval/bool-elim : (bool-elim C M N X) ⇓ (bool-elim C M N X′)
@@ -141,27 +145,30 @@ eval/eq/unit : (eq A M N) ⇓ unit
                 <- N ⇓ ax
                 <- M ⇓ ax
                 <- A ⇓ unit.
-eval/eq : (eq A M N) ⇓ (Eq A′ M′ N′)
+eval/eq/def : (eq A M N) ⇓ unit
+               <- chk nil B A′
+               <- A ⇓ A′
+               <- N ⇓ B
+               <- M ⇓ B.
+                        
+eval/eq : (eq A M N) ⇓ (eq A′ M′ N′)
            <- N ⇓ N′
            <- M ⇓ M′
            <- A ⇓ A′.
+eval/cut : M ⇓ O
+            <- N ⇓ O
+            <- M ⇓ N.
 
 %solve _ : chk nil (λ[A] λ[x] x) (Π univ [A] Π A [x] A).
-test2 : chk nil ax unit = chk/inf inf/ax.
+%solve test2 : chk nil ax unit.
 
-% (reflect (Π[x:unit]. ax ∈ ̱unit) by (λ[x] ax) in ax) 
-%   <= ∩[x:unit] unit.
+%solve lem/eval/ax-in-unit : (eq unit ax ax) ⇓ unit.
 
 test3
    : chk nil (reflect (Π unit [x] ax ∈ unit) (λ[x] ax) ax) (quant intersection unit [x] unit)
       = chk/reflect
          (chk/lam [_] [_]
-            (chk/eval/ty
-               (eval/eq/unit
-                  (eval/can can/unit)
-                  (eval/can can/ax)
-                  (eval/can can/ax))
-               (chk/inf inf/ax)))
+            (chk/eval/ty lem/eval/ax-in-unit (chk/inf inf/ax)))
          (chk/intersection (is-true/lookup lookup/hit)).
 
 so = bool-elim ([_] univ) unit void.
@@ -178,3 +185,49 @@ test4
                   (eval/can can/ax))
                (chk/inf inf/ax)))
          (chk/union (is-true/lookup lookup/hit)).
+
+welp = bool-elim ([_] univ) (true ∈ bool) (false ∈ bool).
+
+test5
+   : chk nil (reflect (Π bool [x] ax ∈ (welp x)) (λ[x] bool-elim ([z] ax ∈ (welp z)) ax ax x) ax) (quant intersection bool welp)
+      = chk/reflect
+         (chk/lam [z] [zz]
+            (chk/inf
+               (inf/bool-elim
+                  (chk/eval/ty
+                     (eval/eq
+                        (eval/bool-elim/true)
+                        (eval/can can/ax)
+                        (eval/can can/ax)
+                        )
+                     (chk/eval/ty
+                        (eval/eq/def
+                           (eval/can can/ax)
+                           (eval/can can/ax)
+                           (eval/eq/def 
+                              (eval/can can/true)
+                              (eval/can can/true)
+                              (eval/can can/bool)
+                              (chk/inf inf/true)
+                              )
+                           (chk/inf inf/ax))
+                        (chk/inf inf/ax)))
+                  
+                  (chk/eval/ty
+                     (eval/eq/def
+                        (eval/can can/ax)
+                        (eval/can can/ax)
+                        (eval/cut
+                           (eval/bool-elim/false)
+                           (eval/eq/def
+                              (eval/can can/false)
+                              (eval/can can/false)
+                              (eval/can can/bool)
+                              (chk/inf inf/false)))
+                        (chk/inf inf/ax))
+                     (chk/inf inf/ax))
+                  ([_][_] chk/inf inf/eq)
+                  zz)))
+         (chk/intersection (is-true/lookup lookup/hit)).
+         
+        
